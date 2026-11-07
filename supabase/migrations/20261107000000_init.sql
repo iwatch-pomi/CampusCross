@@ -51,6 +51,7 @@ insert into public.fields (code, label, sort_order) values
   ('social_science', '社会科学（法・経済・経営）', 70),
   ('education',      '教育',                 80),
   ('arts',           '芸術・デザイン',       90),
+  ('interdisciplinary', '学際・文理融合',     95),
   ('other',          'その他',              100);
 
 -- ---------------------------------------------------------------------

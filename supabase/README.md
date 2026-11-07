@@ -1,6 +1,6 @@
 # Supabase：スキーマとセットアップ
 
-`migrations/20261107000000_init.sql` に、Phase 1 のデータ構造・チケットのロジック・RLS がすべて入っています。
+`migrations/20261107000000_init.sql` に、Phase 1 のデータ構造・チケットのロジック・RLS がすべて入っています。大学ごとの初期データ（ドメイン・学部）は `seeds/` にあります。
 
 ## テーブル
 
@@ -58,28 +58,19 @@
    select cron.schedule('campus-cross-auto-complete', '7 * * * *', 'select private.auto_complete_bookings()');
    ```
 
-3. **自大学のドメインを登録する**（SQLエディタで実行。サブドメインも自動で許可される）
-   ```sql
-   insert into private.allowed_email_domains (domain) values ('xxx.ac.jp');
-   ```
+3. **大学のドメインと学部を登録する**
+   広島大学用の初期データ `seeds/hiroshima-u.sql` の中身を、SQLエディタに貼り付けて実行する。何度実行しても重複しない。
+   - 許可するドメイン：`hiroshima-u.ac.jp`（サブドメインも自動で許可される）
+   - 学部：12学部と、それぞれの代表的な分野（`field_code`。プロフィールの初期値に使う）
 
-4. **自大学の学部を登録する**（`field_code` はその学部の代表的な分野。プロフィールの初期値に使う）
-   ```sql
-   insert into public.faculties (name, field_code, sort_order) values
-     ('理学部',   'science',        10),
-     ('工学部',   'engineering',    20),
-     ('農学部',   'life_science',   30),
-     ('文学部',   'humanities',     40),
-     ('法学部',   'social_science', 50),
-     ('経済学部', 'social_science', 60);
-   ```
+   他大学を追加するときは、同じ形式で `seeds/<大学>.sql` を作る。
 
-5. **メール認証を設定する**
+4. **メール認証を設定する**
    - Authentication → Providers → Email：OTP（6桁のコード）を有効にする。メールのテンプレートには `{{ .Token }}` を入れる
    - Authentication → SMTP Settings：**独自SMTP（Resendなど）を設定する**。標準の送信は上限がかなり低く、本番では足りない
    - 大学のメールで実際に受信できるか（迷惑メールに入らないか）を必ず確認する
 
-6. **フロントエンド側でもドメインを事前にチェックする**
+5. **フロントエンド側でもドメインを事前にチェックする**
    ドメインのチェックはDBのトリガーが最後の砦です。トリガーで拒否されると、Supabase Auth は分かりにくいエラー（`Database error saving new user`）を返すため、フォームでも同じドメインを先にチェックして、分かりやすいメッセージを出してください。
 
 ## 数値を調整する
