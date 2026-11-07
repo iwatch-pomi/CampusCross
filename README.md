@@ -54,13 +54,17 @@ Next.js 16（App Router）／ Tailwind CSS 4 ／ Supabase（Auth・Postgres）�
    ```bash
    npm install
    ```
-2. ローカルの Supabase を起動する。マイグレーション、広島大学の初期データ（ドメインと学部）、デザイン確認用のサンプル（`supabase/seeds/demo.sql`：9人・11枚のカード）も自動で入る
+2. ローカルの Supabase を起動する。マイグレーションと広島大学の初期データ（ドメインと学部）が自動で入る
    ```bash
    npx supabase start
    ```
    データを作り直したいときは次を実行する。
    ```bash
    npx supabase db reset
+   ```
+   デザイン確認用のサンプル（9人・11枚のカード）を入れたいときは、次を実行する（**本番では実行しない**）。
+   ```bash
+   psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -f supabase/seeds/demo.sql
    ```
 3. `.env.example` を `.env.local` にコピーし、`supabase start` が表示した API URL と publishable（anon）キーを入れる
 4. 開発サーバーを起動する

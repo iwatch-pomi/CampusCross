@@ -60,7 +60,8 @@ schema_paths = []
 enabled = true
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
-sql_paths = ["./seeds/hiroshima-u.sql", "./seeds/demo.sql"]  # demo.sql はローカル用のサンプル
+# demo.sql（サンプル）は本番に入らないよう自動では読み込まない。ローカルで見たいときは README の手順で入れる
+sql_paths = ["./seeds/hiroshima-u.sql"]
 
 [db.network_restrictions]
 # Enable management of network restrictions.
