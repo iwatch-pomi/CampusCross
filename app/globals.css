@@ -1,10 +1,56 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
 
-@theme {
-  --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.7;
+    overflow-x: clip;
+  }
+  h1, h2, h3 {
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--color-primary-soft);
+  }
 }
 
-body {
-  background: var(--color-stone-50);
-  color: var(--color-stone-900);
+@layer utilities {
+  /* 横スクロール列でスクロールバーを隠す */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /*
+   * チケットの切り欠き（左右の半円）。--notch-y は上端からの位置。
+   * mask なのでどんな背景色の上でも切り欠きが透ける。
+   */
+  .ticket-notch {
+    --notch-r: 10px;
+    -webkit-mask:
+      radial-gradient(circle at left var(--notch-y, 70%), transparent var(--notch-r), #000 calc(var(--notch-r) + 0.5px)) left / 51% 100% no-repeat,
+      radial-gradient(circle at right var(--notch-y, 70%), transparent var(--notch-r), #000 calc(var(--notch-r) + 0.5px)) right / 51% 100% no-repeat;
+    mask:
+      radial-gradient(circle at left var(--notch-y, 70%), transparent var(--notch-r), #000 calc(var(--notch-r) + 0.5px)) left / 51% 100% no-repeat,
+      radial-gradient(circle at right var(--notch-y, 70%), transparent var(--notch-r), #000 calc(var(--notch-r) + 0.5px)) right / 51% 100% no-repeat;
+  }
+  .bg-gradient-hero {
+    background-image: var(--gradient-hero);
+  }
+  .bg-gradient-cta {
+    background-image: var(--gradient-cta);
+  }
 }

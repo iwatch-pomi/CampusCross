@@ -43,11 +43,14 @@ async function verifyCode(email: string, formData: FormData): Promise<LoginState
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
-  if (error) {
+  const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
+  if (error || !data.user) {
     return { step: "code", email, error: "コードが違うか、有効期限が切れています" };
   }
-  redirect("/");
+
+  // プロフィール未登録ならホームを経由せず、直接プロフィール登録へ
+  const { data: profile } = await supabase.from("profiles").select("onboarded").eq("id", data.user.id).single();
+  redirect(profile?.onboarded ? "/" : "/onboarding");
 }
 
 function toJapanese(message: string): string {

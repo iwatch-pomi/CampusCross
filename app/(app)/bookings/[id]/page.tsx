@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CalendarClock, MapPin, MessageSquareText, Shuffle, Video } from "lucide-react";
 import { requireOnboarded } from "@/lib/auth";
 import { CancelForm, CompleteForm, SafetyForms, ThanksForm } from "@/components/booking-actions";
-import { Badge, Card } from "@/components/ui";
+import { Avatar, Badge, Card } from "@/components/ui";
+import { TestimonialCard } from "@/components/marketing/testimonial-card";
 import { GRADE_LABEL } from "@/lib/constants";
 import { formatDateTime, formatSlot, hasStarted } from "@/lib/format";
 import type { Booking, PublicProfile, Slot } from "@/lib/types";
@@ -37,62 +39,79 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
   const iAmLearner = b.learner_id === profile.id;
   const other = iAmLearner ? b.teacher : b.learner;
   const started = hasStarted(b.slot.start_at);
+  const online = b.slot.mode === "online";
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-2xl space-y-5">
       {sp.booked === "1" && b.status === "booked" && (
-        <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p role="status" className="rounded-md bg-success-soft px-4 py-3 text-sm text-success">
           予約が確定しました。チケット1枚を仮押さえしています（キャンセルすると戻ります）。
         </p>
       )}
 
-      <div>
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          <StatusBadge booking={b} started={started} />
-          {b.is_cross_field && <Badge tone="cross">異分野</Badge>}
-          <Badge tone="muted">{iAmLearner ? "あなたが学ぶ" : "あなたが教える"}</Badge>
-        </div>
-        <Link href={`/offers/${b.offer.id}`} className="text-xl font-bold leading-snug hover:underline">
-          {b.offer.title}
-        </Link>
+      {/* チケットの半券のような予約カード */}
+      <div className="drop-shadow-card">
+        <article className="ticket-notch overflow-hidden rounded-lg border border-border bg-surface" style={{ ["--notch-y" as string]: "calc(100% - 5.5rem)" }}>
+          <div className="space-y-3 p-5">
+            <div className="flex flex-wrap gap-1.5">
+              <StatusBadge booking={b} started={started} />
+              {b.is_cross_field && <Badge tone="point" icon={<Shuffle className="size-3" aria-hidden />}>異分野</Badge>}
+              <Badge tone="muted">{iAmLearner ? "あなたが学ぶ" : "あなたが教える"}</Badge>
+            </div>
+            <h1 className="text-xl leading-snug sm:text-2xl">
+              <Link href={`/offers/${b.offer.id}`} className="hover:text-primary hover:underline">{b.offer.title}</Link>
+            </h1>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Info icon={<CalendarClock className="size-5" />} label="日時">{formatSlot(b.slot.start_at, b.slot.end_at)}</Info>
+              <Info icon={online ? <Video className="size-5" /> : <MapPin className="size-5" />} label={online ? "オンライン" : "場所（対面）"}>
+                {b.slot.location}
+              </Info>
+            </div>
+            {b.message && (
+              <Info icon={<MessageSquareText className="size-5" />} label="予約時のひとこと">{b.message}</Info>
+            )}
+          </div>
+          <div className="flex h-22 items-center gap-3 border-t-2 border-dashed border-border px-5">
+            <Avatar seed={other.id} name={other.display_name} size="md" />
+            <p className="min-w-0 text-sm">
+              <span className="block text-xs text-text-sub">{iAmLearner ? "話す人" : "予約した人"}</span>
+              <span className="block truncate font-bold">{other.display_name}さん</span>
+              <span className="block truncate text-xs text-text-sub">
+                {[other.faculty?.name, other.grade && GRADE_LABEL[other.grade]].filter(Boolean).join(" ")}
+              </span>
+            </p>
+          </div>
+        </article>
       </div>
 
-      <Card className="space-y-3">
-        <Row label="日時">{formatSlot(b.slot.start_at, b.slot.end_at)}</Row>
-        <Row label={b.slot.mode === "online" ? "オンライン" : "場所（対面）"}>{b.slot.location}</Row>
-        <Row label={iAmLearner ? "話す人" : "予約した人"}>
-          <span className="font-semibold">{other.display_name}</span>
-          <span className="text-stone-600">
-            {" "}・ {other.faculty?.name}
-            {other.grade && ` ${GRADE_LABEL[other.grade] ?? ""}`}
-          </span>
-        </Row>
-        {b.message && <Row label="予約時のひとこと">{b.message}</Row>}
-        {b.status === "booked" && (
-          <p className="rounded-xl bg-stone-100 px-3 py-2 text-xs text-stone-600">
-            当日は表示名で声をかけてください。連絡先の交換は任意です。
-          </p>
-        )}
-      </Card>
+      {b.status === "booked" && (
+        <p className="rounded-md bg-bg-section px-4 py-3 text-xs text-text-sub">
+          当日は表示名で声をかけてください。連絡先の交換は任意です。はじめての相手とは人目のある場所で。
+        </p>
+      )}
 
       {b.status === "cancelled" && (
-        <Card className="text-sm text-stone-700">
+        <Card className="text-sm">
           {b.cancelled_by === profile.id ? "あなたが" : `${other.display_name}さんが`}キャンセルしました
           {b.cancelled_at && `（${formatDateTime(b.cancelled_at)}）`}。
-          {b.cancel_reason && <p className="mt-1 text-stone-600">理由: {b.cancel_reason}</p>}
+          {b.cancel_reason && <p className="mt-1 text-text-sub">理由: {b.cancel_reason}</p>}
         </Card>
       )}
 
       {b.status === "completed" && (
-        <Card className="space-y-3 text-sm">
-          <p className="text-stone-700">
+        <Card className="space-y-4 text-sm">
+          <p>
             {b.auto_completed ? "終了から48時間たったため、自動で完了になりました。" : "完了しました。"}
             {iAmLearner ? "チケット1枚が相手に届きました。" : "チケットを1枚受け取りました。"}
           </p>
           {b.thanks_message ? (
-            <blockquote className="rounded-xl border-l-4 border-teal-400 bg-teal-50 px-3 py-2 text-teal-900">
-              {b.thanks_message}
-            </blockquote>
+            <TestimonialCard
+              quote={b.thanks_message}
+              name={`${b.learner.display_name}さん`}
+              attribute={[b.learner.faculty?.name, b.learner.grade && GRADE_LABEL[b.learner.grade]].filter(Boolean).join(" ")}
+              seed={b.learner.id}
+              footnote="からのお礼コメント"
+            />
           ) : (
             iAmLearner && <ThanksForm bookingId={b.id} />
           )}
@@ -121,16 +140,19 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
 }
 
 function StatusBadge({ booking, started }: { booking: Booking; started: boolean }) {
-  if (booking.status === "completed") return <Badge tone="ok">完了</Badge>;
-  if (booking.status === "cancelled") return <Badge tone="warn">キャンセル</Badge>;
-  return <Badge tone="neutral">{started ? "完了待ち" : "予約確定"}</Badge>;
+  if (booking.status === "completed") return <Badge tone="success">完了</Badge>;
+  if (booking.status === "cancelled") return <Badge tone="danger">キャンセル</Badge>;
+  return <Badge tone="primary">{started ? "完了待ち" : "予約確定"}</Badge>;
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+function Info({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
   return (
-    <div className="text-sm">
-      <p className="text-xs font-semibold text-stone-500">{label}</p>
-      <div className="mt-0.5 text-stone-900">{children}</div>
+    <div className="flex gap-3 rounded-md bg-bg-section p-3 text-sm">
+      <span className="mt-0.5 shrink-0 text-primary" aria-hidden>{icon}</span>
+      <span className="min-w-0">
+        <span className="block text-xs font-bold text-text-sub">{label}</span>
+        <span className="block break-words font-bold">{children}</span>
+      </span>
     </div>
   );
 }

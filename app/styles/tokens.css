@@ -1,0 +1,121 @@
+/*
+ * Campus-Cross デザイントークン
+ * ------------------------------------------------------------
+ * 全画面の色・角丸・影・余白はこのファイルだけを参照する。
+ * Tailwind 標準のパレット・角丸・影は無効化しているので、
+ * ここにない値（例: bg-blue-500, rounded-2xl）を書いても効かない。
+ *
+ * メインカラーを差し替えるときは --color-primary 系の3つを変えるだけでよい。
+ * 文字や白抜きボタンに使う色は、白背景・白文字とのコントラスト比 4.5:1 以上（AA）を確認済み。
+ */
+@theme {
+  --color-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --drop-shadow-*: initial;
+
+  /* ---- ブランド ---- */
+  --color-primary: #0e7a6d;        /* ティール。ボタン・リンク・選択状態（白文字 5.1:1） */
+  --color-primary-strong: #0b5f55; /* ホバー・押下 */
+  --color-primary-soft: #e6f6f2;   /* 淡色背景・選択中のタブ */
+  --color-primary-vivid: #2bb9a5;  /* 装飾専用（文字には使わない） */
+
+  --color-accent: #c24a0e;         /* CTA・強調（白文字 4.9:1） */
+  --color-accent-strong: #9e3c0b;
+  --color-accent-soft: #ffefe3;
+  --color-accent-vivid: #f7894a;   /* 装飾専用 */
+
+  --color-point: #bc1d5e;          /* ラベル・バッジ（POINT など） */
+  --color-point-soft: #fce9f1;
+  --color-point-vivid: #f07aa8;    /* 装飾専用 */
+
+  /* ---- 文字・面・線 ---- */
+  --color-text: #1e293b;
+  --color-text-sub: #56616f;
+  --color-on-primary: #ffffff;     /* 色付きボタンの上の文字 */
+  --color-surface: #ffffff;        /* カード・入力欄の面 */
+  --color-bg: #f7fbfa;             /* ページ全体の背景 */
+  --color-bg-section: #eef8f5;     /* ミント系のセクション背景 */
+  --color-border: #dce5e2;         /* 区切り線・カードの縁 */
+  --color-border-strong: #8a9894;  /* 入力欄の枠（UI部品として 3:1） */
+  --color-focus: #2f5bd3;          /* フォーカスリング */
+  --color-overlay: #0f172a;        /* ドロワーの背面（不透明度は使う側で指定） */
+
+  /* ---- 状態 ---- */
+  --color-success: #1f7a3a;
+  --color-success-soft: #e5f5ea;
+  --color-warn: #7a5800;
+  --color-warn-soft: #fff4d6;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+
+  /* ---- カテゴリ（分野）のパステルパレット: bg がアイコン背景、fg がアイコン・文字 ---- */
+  --color-cat-1-bg: #e0f2ef;  --color-cat-1-fg: #0b6b60;
+  --color-cat-2-bg: #fde8d8;  --color-cat-2-fg: #9a3c0b;
+  --color-cat-3-bg: #fbe4ee;  --color-cat-3-fg: #9d1b53;
+  --color-cat-4-bg: #e4ecfb;  --color-cat-4-fg: #2b4f9e;
+  --color-cat-5-bg: #efe6fb;  --color-cat-5-fg: #5f3a9e;
+  --color-cat-6-bg: #fff3c9;  --color-cat-6-fg: #7a5800;
+  --color-cat-7-bg: #e2f4e1;  --color-cat-7-fg: #2e6b28;
+  --color-cat-8-bg: #fce3e1;  --color-cat-8-fg: #9e2a22;
+  --color-cat-9-bg: #dff1fa;  --color-cat-9-fg: #145f82;
+  --color-cat-10-bg: #f1ece4; --color-cat-10-fg: #6b5332;
+  --color-cat-11-bg: #e8eaf7; --color-cat-11-fg: #3f4592;
+  --color-cat-12-bg: #f0f3e1; --color-cat-12-fg: #56651c;
+
+  /* ---- イラスト用（アバターの肌・髪） ---- */
+  --color-skin-1: #f6d7c3; --color-skin-2: #e9b998; --color-skin-3: #c98e6b;
+  --color-hair-1: #2d2a32; --color-hair-2: #5b3a29; --color-hair-3: #8a5a3c; --color-hair-4: #3b4a6b;
+
+  /* ---- 角丸 ---- */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+
+  /* ---- 影 ---- */
+  --shadow-card: 0 2px 8px rgb(0 0 0 / 0.06);
+  --shadow-card-hover: 0 8px 20px rgb(0 0 0 / 0.09);
+  --shadow-float: 0 -4px 16px rgb(0 0 0 / 0.08);
+  /* 切り欠きのあるチケット型カードは box-shadow が mask で消えるので drop-shadow を使う */
+  --drop-shadow-card: 0 2px 6px rgb(0 0 0 / 0.07);
+  --drop-shadow-card-hover: 0 8px 14px rgb(0 0 0 / 0.11);
+
+  /* ---- 余白（4px ベース。--spacing は Tailwind 既定の 0.25rem を使う） ---- */
+  --spacing-section: 5rem;     /* セクション間 80px（PC） */
+  --spacing-section-sm: 4rem;  /* セクション間 64px（SP） */
+
+  /* ---- 文字 ---- */
+  --text-2xs: 0.6875rem;          /* 11px。下部タブのラベルだけに使う */
+  --text-2xs--line-height: 1;
+  --font-sans: var(--font-noto-sans-jp), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+
+  /* ---- グラデーション（背景装飾） ---- */
+  --gradient-hero: linear-gradient(135deg, #e6f6f2 0%, #fdf3ea 55%, #fceaf2 100%);
+  --gradient-cta: linear-gradient(120deg, #e6f6f2 0%, #fff6dd 100%);
+}
+
+/*
+ * ダークモード（構想では未定のため、トークンだけ用意して未使用）。
+ * <html data-theme="dark"> を付けると切り替わる。
+ */
+:root[data-theme="dark"] {
+  --color-primary: #3cc9b5;
+  --color-primary-strong: #6fdccb;
+  --color-primary-soft: #12332f;
+  --color-accent: #ff9a5c;
+  --color-accent-strong: #ffb788;
+  --color-accent-soft: #3a2416;
+  --color-point: #f58bb5;
+  --color-point-soft: #3a1828;
+  --color-text: #e7eeec;
+  --color-text-sub: #a9b6b2;
+  --color-on-primary: #0b1715;
+  --color-surface: #16201e;
+  --color-bg: #0f1716;
+  --color-bg-section: #13211e;
+  --color-border: #2a3a37;
+  --color-border-strong: #5f716d;
+  --gradient-hero: linear-gradient(135deg, #12332f 0%, #2a2018 55%, #2d1724 100%);
+  --gradient-cta: linear-gradient(120deg, #12332f 0%, #2a2614 100%);
+}

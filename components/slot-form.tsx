@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { createSlot } from "@/app/(app)/slots/actions";
 import { FormMessage, SubmitButton } from "./form-bits";
-import { Field, INPUT } from "./ui";
+import { CHOICE, Field, INPUT } from "./ui";
 import { LOCATION_SUGGESTIONS } from "@/lib/constants";
 
 export function SlotForm({ today }: { today: string }) {
@@ -35,7 +35,7 @@ export function SlotForm({ today }: { today: string }) {
       </div>
 
       <fieldset>
-        <legend className="mb-1.5 text-sm font-medium text-stone-800">形式</legend>
+        <legend className="mb-2 text-sm font-bold">形式</legend>
         <div className="grid grid-cols-2 gap-2 text-sm">
           {(
             [
@@ -43,7 +43,7 @@ export function SlotForm({ today }: { today: string }) {
               ["online", "オンライン"],
             ] as const
           ).map(([value, label]) => (
-            <label key={value} className={`cursor-pointer rounded-xl border p-2.5 text-center ${mode === value ? "border-indigo-500 bg-indigo-50 font-semibold" : "border-stone-300 bg-white"}`}>
+            <label key={value} className={`${CHOICE} items-center text-center font-bold`}>
               <input type="radio" name="mode" value={value} checked={mode === value} onChange={() => setMode(value)} className="sr-only" />
               {label}
             </label>
@@ -64,7 +64,7 @@ export function SlotForm({ today }: { today: string }) {
       </Field>
 
       <FormMessage state={state} />
-      <SubmitButton className="w-full" pendingText="登録中…">枠を登録する</SubmitButton>
+      <SubmitButton size="lg" className="w-full" pendingText="登録中…">枠を登録する</SubmitButton>
     </form>
   );
 }

@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { createOffer, updateOffer } from "@/app/(app)/offers/actions";
 import { FormMessage, SubmitButton } from "./form-bits";
-import { Field, INPUT } from "./ui";
+import { CHOICE, Field, INPUT } from "./ui";
 import { FACULTY_GUIDE_TEMPLATE, HOOK_PLACEHOLDER, TITLE_PLACEHOLDER } from "@/lib/constants";
 import type { Field as FieldRow, Offer, OfferKind } from "@/lib/types";
 
@@ -32,7 +32,7 @@ export function OfferForm({
       {offer && <input type="hidden" name="id" value={offer.id} />}
 
       <fieldset>
-        <legend className="mb-1.5 text-sm font-medium text-stone-800">カードの種類</legend>
+        <legend className="mb-2 text-sm font-bold">カードの種類</legend>
         <div className="grid grid-cols-2 gap-2">
           {(
             [
@@ -40,13 +40,10 @@ export function OfferForm({
               ["faculty_guide", "学部のしくみ", "ゼミ・研究室の決まり方、卒論など"],
             ] as const
           ).map(([value, label, sub]) => (
-            <label
-              key={value}
-              className={`cursor-pointer rounded-xl border p-3 text-sm ${kind === value ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200" : "border-stone-300 bg-white"}`}
-            >
+            <label key={value} className={CHOICE}>
               <input type="radio" name="kind" value={value} checked={kind === value} onChange={() => chooseKind(value)} className="sr-only" />
-              <span className="block font-semibold">{label}</span>
-              <span className="mt-0.5 block text-xs text-stone-500">{sub}</span>
+              <span className="block font-bold">{label}</span>
+              <span className="mt-0.5 block text-xs text-text-sub">{sub}</span>
             </label>
           ))}
         </div>
@@ -89,14 +86,14 @@ export function OfferForm({
       </Field>
 
       {offer && (
-        <label className="flex items-center gap-2 text-sm text-stone-700">
-          <input type="checkbox" name="is_active" defaultChecked={offer.is_active} className="size-4 accent-indigo-600" />
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+          <input type="checkbox" name="is_active" defaultChecked={offer.is_active} className="size-5 accent-primary" />
           公開する（外すと一覧に出なくなります。入っている予約はそのまま残ります）
         </label>
       )}
 
       <FormMessage state={state} />
-      <SubmitButton className="w-full" pendingText="保存中…">{offer ? "保存する" : "カードを公開する"}</SubmitButton>
+      <SubmitButton variant="accent" size="lg" className="w-full" pendingText="保存中…">{offer ? "保存する" : "カードを公開する"}</SubmitButton>
     </form>
   );
 }

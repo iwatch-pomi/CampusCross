@@ -40,11 +40,20 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isPublic) {
     return redirectKeepingCookies(request, response, "/login");
   }
-  if (user && pathname === "/login") {
+  // ログイン済みで紹介ページを開いたらホームへ。ただしページ遷移（ドキュメント要求）のときだけ。
+  // プリフェッチや RSC の要求までリダイレクトすると、クライアントのルーターが遷移をくり返してしまう
+  if (user && pathname === "/login" && isDocumentRequest(request)) {
     return redirectKeepingCookies(request, response, "/");
   }
 
   return response;
+}
+
+/** ブラウザのページ遷移（HTML の要求）か。fetch による RSC 要求やプリフェッチは false */
+function isDocumentRequest(request: NextRequest): boolean {
+  const dest = request.headers.get("sec-fetch-dest");
+  if (dest) return dest === "document";
+  return request.headers.get("accept")?.includes("text/html") ?? false;
 }
 
 function redirectKeepingCookies(request: NextRequest, from: NextResponse, path: string) {

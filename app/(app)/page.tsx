@@ -1,125 +1,142 @@
 import Link from "next/link";
-import { requireOnboarded, isCrossField } from "@/lib/auth";
+import { ArrowRight, CalendarClock, Plus, Shuffle } from "lucide-react";
+import { requireOnboarded } from "@/lib/auth";
 import { loadMasters } from "@/lib/masters";
-import { loadOpenSlots, TEACHER_SELECT, type OfferWithTeacher } from "@/lib/offers";
-import { OfferCard } from "@/components/offer-card";
-import { BUTTON, Empty, INPUT } from "@/components/ui";
-import type { OfferKind } from "@/lib/types";
+import { searchOffers, type OfferRow } from "@/lib/offers";
+import { formatSlot } from "@/lib/format";
+import { Avatar, ButtonLink, EmptyState, SectionHeading } from "@/components/ui";
+import { CategoryIconGrid } from "@/components/category/category-icon-grid";
+import { CategorySidebar } from "@/components/category/category-sidebar";
+import { SkillCard } from "@/components/skill/skill-card";
+import { SkillCarousel } from "@/components/skill/skill-carousel";
+import { DecorationCircles } from "@/components/decor/decoration-circles";
 
-const TABS: { kind: OfferKind; label: string; sub: string }[] = [
-  { kind: "topic", label: "専門テーマ", sub: "他学部の人の研究・専門を15分で" },
-  { kind: "faculty_guide", label: "他学部のしくみ", sub: "ゼミ・研究室の決まり方、卒論、学び方など" },
-];
-
-export default async function HomePage({ searchParams }: PageProps<"/">) {
-  const sp = await searchParams;
-  const kind: OfferKind = sp.kind === "faculty_guide" ? "faculty_guide" : "topic";
-  const field = typeof sp.field === "string" ? sp.field : "";
-  const faculty = typeof sp.faculty === "string" ? sp.faculty : "";
-  const q = typeof sp.q === "string" ? sp.q.trim() : "";
-
+export default async function HomePage() {
   const { supabase, profile } = await requireOnboarded();
-  const [{ fields, faculties, fieldLabel }, { data }] = await Promise.all([
-    loadMasters(supabase),
+  const { fields, fieldLabel } = await loadMasters(supabase);
+
+  const [rows, { data: upcoming }, { data: wallet }] = await Promise.all([
+    searchOffers(supabase, profile, fieldLabel),
     supabase
-      .from("offers")
-      .select(`*, ${TEACHER_SELECT}`)
-      .eq("is_active", true)
-      .eq("kind", kind)
-      .neq("teacher_id", profile.id)
+      .from("bookings")
+      .select("id, learner_id, offer:offers(title), slot:slots(start_at, end_at, location)")
+      .eq("status", "booked")
       .order("created_at", { ascending: false })
-      .limit(300),
+      .limit(20),
+    supabase.from("wallets").select("balance").single(),
   ]);
 
-  const needle = q.toLowerCase();
-  const offers = ((data ?? []) as OfferWithTeacher[]).filter((o) => {
-    if (field && o.field_code !== field) return false;
-    if (faculty && o.teacher.faculty_id !== faculty) return false;
-    if (needle) {
-      const hay = [o.title, o.hook, o.description ?? "", o.want_to_hear ?? "", ...o.tags].join(" ").toLowerCase();
-      if (!hay.includes(needle)) return false;
-    }
-    return true;
-  });
+  const countByField = new Map<string, number>();
+  for (const r of rows) countByField.set(r.offer.field_code, (countByField.get(r.offer.field_code) ?? 0) + 1);
+  const categories = fields.map((f) => ({ code: f.code, label: f.label, count: countByField.get(f.code) ?? 0, href: `/search?field=${f.code}` }));
 
-  const slots = await loadOpenSlots(supabase, [...new Set(offers.map((o) => o.teacher_id))]);
-  const slotsByTeacher = new Map<string, typeof slots>();
-  for (const s of slots) {
-    slotsByTeacher.set(s.teacher_id, [...(slotsByTeacher.get(s.teacher_id) ?? []), s]);
-  }
+  const topics = rows.filter((r) => r.offer.kind === "topic");
+  const sections: { key: string; title: string; sub: string; href: string; rows: OfferRow[] }[] = [
+    { key: "cross", title: "あなたにとって異分野のテーマ", sub: "自分と違う学部・分野の人のカード", href: "/search?kind=topic", rows: topics.filter((r) => r.cross) },
+    {
+      key: "soon",
+      title: "もうすぐ話せる",
+      sub: "近い日時に空き枠があるカード",
+      href: "/search?sort=soon&open=1",
+      rows: rows.filter((r) => r.open.length > 0).sort((a, b) => a.open[0].start_at.localeCompare(b.open[0].start_at)),
+    },
+    { key: "guide", title: "他学部のしくみ", sub: "ゼミ・研究室の決まり方、卒論、学び方", href: "/search?kind=faculty_guide", rows: rows.filter((r) => r.offer.kind === "faculty_guide") },
+    { key: "new", title: "新着", sub: "最近出されたカード", href: "/search?sort=new", rows: [...rows].sort((a, b) => b.offer.created_at.localeCompare(a.offer.created_at)) },
+  ];
 
-  // 異分野を先に、その中で空き枠があるものを先に
-  const rows = offers
-    .map((o) => {
-      const open = (slotsByTeacher.get(o.teacher_id) ?? []).filter(
-        (s) => new Date(s.end_at).getTime() - new Date(s.start_at).getTime() >= o.duration_min * 60000,
-      );
-      return { offer: o, cross: isCrossField(profile, o.teacher), open };
-    })
-    .sort((a, b) => Number(b.cross) - Number(a.cross) || Number(b.open.length > 0) - Number(a.open.length > 0));
-
-  const tab = TABS.find((t) => t.kind === kind)!;
+  type Upcoming = { id: string; learner_id: string; offer: { title: string } | null; slot: { start_at: string; end_at: string; location: string } | null };
+  const next = ((upcoming ?? []) as unknown as Upcoming[])
+    .filter((b) => b.slot)
+    .sort((a, b) => a.slot!.start_at.localeCompare(b.slot!.start_at))[0];
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-1 rounded-2xl bg-stone-200/70 p-1" role="tablist">
-        {TABS.map((t) => (
-          <Link
-            key={t.kind}
-            role="tab"
-            aria-selected={t.kind === kind}
-            href={t.kind === "topic" ? "/" : "/?kind=faculty_guide"}
-            className={`rounded-xl px-3 py-2 text-center text-sm font-semibold ${t.kind === kind ? "bg-white text-indigo-700 shadow-sm" : "text-stone-600"}`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </div>
-      <p className="-mt-2 text-center text-xs text-stone-500">{tab.sub}</p>
-
-      <form className="grid grid-cols-2 gap-2" action="/">
-        {kind === "faculty_guide" && <input type="hidden" name="kind" value="faculty_guide" />}
-        <select name="field" defaultValue={field} aria-label="分野で絞り込む" className={`${INPUT} py-2 text-sm`}>
-          <option value="">すべての分野</option>
-          {fields.map((f) => (
-            <option key={f.code} value={f.code}>{f.label}</option>
-          ))}
-        </select>
-        <select name="faculty" defaultValue={faculty} aria-label="学部で絞り込む" className={`${INPUT} py-2 text-sm`}>
-          <option value="">すべての学部</option>
-          {faculties.map((f) => (
-            <option key={f.id} value={f.id}>{f.name}</option>
-          ))}
-        </select>
-        <div className="col-span-2 flex gap-2">
-          <input name="q" defaultValue={q} placeholder="キーワード（例：機械学習、ゼミ）" aria-label="キーワード" className={`${INPUT} py-2 text-sm`} />
-          <button type="submit" className={`${BUTTON.secondary} shrink-0 py-2`}>絞り込む</button>
+    <div className="space-y-14">
+      {/* あいさつ */}
+      <section className="relative isolate overflow-hidden rounded-lg bg-gradient-hero p-5 sm:p-7">
+        <DecorationCircles />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <Avatar seed={profile.id} size="lg" className="ring-4 ring-surface" />
+            <div>
+              <p className="text-sm text-text-sub">こんにちは</p>
+              <h1 className="text-xl sm:text-2xl">{profile.display_name}さん</h1>
+              <p className="mt-0.5 text-sm">
+                チケット <span className="text-lg font-bold text-primary">{wallet?.balance ?? 0}</span> 枚
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/offers/new" variant="accent">
+              <Plus className="size-4" aria-hidden />
+              カードを出す
+            </ButtonLink>
+            <ButtonLink href="/slots" variant="outline">
+              <CalendarClock className="size-4" aria-hidden />
+              空き枠を登録
+            </ButtonLink>
+          </div>
         </div>
-      </form>
-
-      {rows.length === 0 ? (
-        <Empty>
-          {field || faculty || q ? "条件に合うカードがありません。" : "まだカードがありません。"}
-          <br />
-          <Link href="/offers/new" className="mt-2 inline-block font-semibold text-indigo-700 underline">
-            最初のカードを出してみる
+        {next && next.slot && (
+          <Link href={`/bookings/${next.id}`} className="relative mt-5 flex items-center gap-3 rounded-md bg-surface/90 p-3 text-sm shadow-card hover:bg-surface">
+            <CalendarClock className="size-5 shrink-0 text-primary" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-bold text-primary">{next.learner_id === profile.id ? "次に学ぶ予定" : "次に教える予定"}</span>
+              <span className="block truncate font-bold">{next.offer?.title}</span>
+              <span className="block truncate text-xs text-text-sub">{formatSlot(next.slot.start_at, next.slot.end_at)} ・ {next.slot.location}</span>
+            </span>
+            <ArrowRight className="size-4 shrink-0 text-text-sub" aria-hidden />
           </Link>
-        </Empty>
-      ) : (
-        <ul className="space-y-3">
-          {rows.map(({ offer, cross, open }) => (
-            <li key={offer.id}>
-              <OfferCard
-                offer={offer}
-                fieldLabel={fieldLabel[offer.field_code] ?? offer.field_code}
-                cross={cross}
-                nextSlot={open[0]}
-                openCount={open.length}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+        )}
+      </section>
+
+      {/* 分野からさがす */}
+      <section aria-labelledby="category-heading">
+        <SectionHeading title={<span id="category-heading">分野からさがす</span>} sub="自分と違う分野をのぞいてみましょう" />
+        <div className="grid gap-6 lg:grid-cols-[--spacing(60)_1fr]">
+          <div className="hidden lg:block">
+            <CategorySidebar title="分野" items={categories} />
+          </div>
+          <div className="rounded-lg border border-border bg-surface p-4 shadow-card sm:p-6">
+            <CategoryIconGrid items={categories} />
+          </div>
+        </div>
+      </section>
+
+      {sections.map((s) => (
+        <section key={s.key} aria-labelledby={`${s.key}-heading`}>
+          <SectionHeading
+            title={
+              <span id={`${s.key}-heading`} className="flex items-center gap-2">
+                {s.key === "cross" && <Shuffle className="size-5 text-point" aria-hidden />}
+                {s.title}
+              </span>
+            }
+            sub={s.sub}
+            action={
+              s.rows.length > 0 && (
+                <Link href={s.href} className="flex min-h-11 items-center gap-1 text-sm font-bold text-primary">
+                  すべて見る
+                  <ArrowRight className="size-4" aria-hidden />
+                </Link>
+              )
+            }
+          />
+          {s.rows.length === 0 ? (
+            <EmptyState
+              title={s.key === "guide" ? "まだ「学部のしくみ」カードがありません" : "まだカードがありません"}
+              action={<ButtonLink href="/offers/new" variant="pill">最初のカードを出してみる</ButtonLink>}
+            >
+              あなたの専門や、学部の仕組みを話すカードを出してみませんか？
+            </EmptyState>
+          ) : (
+            <SkillCarousel label={s.title}>
+              {s.rows.slice(0, 12).map((r) => (
+                <SkillCard key={r.offer.id} data={r.card} />
+              ))}
+            </SkillCarousel>
+          )}
+        </section>
+      ))}
     </div>
   );
 }

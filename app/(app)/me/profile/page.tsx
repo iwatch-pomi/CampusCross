@@ -1,7 +1,7 @@
 import { requireOnboarded } from "@/lib/auth";
 import { loadContact, loadMasters } from "@/lib/masters";
 import { ProfileForm } from "@/components/profile-form";
-import { PageTitle } from "@/components/ui";
+import { Card, PageTitle } from "@/components/ui";
 
 export default async function EditProfilePage() {
   const { supabase, user, profile } = await requireOnboarded();
@@ -10,9 +10,11 @@ export default async function EditProfilePage() {
     loadContact(supabase, user.id),
   ]);
   return (
-    <>
+    <div className="mx-auto max-w-2xl">
       <PageTitle>プロフィールを編集</PageTitle>
-      <ProfileForm profile={profile} contact={contact} faculties={faculties} fields={fields} next="/me" submitLabel="保存する" />
-    </>
+      <Card className="sm:p-7">
+        <ProfileForm profile={profile} contact={contact} faculties={faculties} fields={fields} next="/me" submitLabel="保存する" />
+      </Card>
+    </div>
   );
 }

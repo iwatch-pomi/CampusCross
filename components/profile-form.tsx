@@ -72,7 +72,7 @@ export function ProfileForm({ profile, contact, faculties, fields, next, submitL
         <textarea id="bio" name="bio" rows={4} maxLength={500} defaultValue={profile.bio ?? ""} className={INPUT} />
       </Field>
 
-      <fieldset className="space-y-3 rounded-2xl bg-stone-100 p-4">
+      <fieldset className="space-y-3 rounded-lg bg-bg-section p-4">
         <legend className="sr-only">通知</legend>
         <Field
           label="通知を受け取るメールアドレス（任意）"
@@ -81,14 +81,14 @@ export function ProfileForm({ profile, contact, faculties, fields, next, submitL
         >
           <input id="contact_email" name="contact_email" type="email" defaultValue={contact.contact_email ?? ""} placeholder="you@example.com" className={INPUT} />
         </Field>
-        <label className="flex items-center gap-2 text-sm text-stone-700">
-          <input type="checkbox" name="notify_by_email" defaultChecked={contact.notify_by_email} className="size-4 accent-indigo-600" />
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+          <input type="checkbox" name="notify_by_email" defaultChecked={contact.notify_by_email} className="size-5 accent-primary" />
           予約・キャンセル・お礼をメールで知らせる
         </label>
       </fieldset>
 
       <FormMessage state={state} />
-      <SubmitButton className="w-full" pendingText="保存中…">{submitLabel}</SubmitButton>
+      <SubmitButton size="lg" className="w-full" pendingText="保存中…">{submitLabel}</SubmitButton>
     </form>
   );
 }

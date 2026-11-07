@@ -1,11 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import { CalendarClock, MapPin, Video } from "lucide-react";
 import { requireOnboarded } from "@/lib/auth";
 import { cancelSlot } from "./actions";
 import { SlotForm } from "@/components/slot-form";
 import { SubmitButton } from "@/components/form-bits";
-import { Badge, Card, Empty, PageTitle } from "@/components/ui";
+import { Badge, Card, EmptyState, PageTitle } from "@/components/ui";
 import { formatSlot, todayJst } from "@/lib/format";
 import type { Slot } from "@/lib/types";
+
+export const metadata: Metadata = { title: "空き枠" };
 
 export default async function SlotsPage() {
   const { supabase, profile } = await requireOnboarded();
@@ -25,48 +29,61 @@ export default async function SlotsPage() {
   const bookingBySlot = new Map((bookings ?? []).map((b) => [b.slot_id as string, b.id as string]));
 
   return (
-    <div className="space-y-6">
+    <div>
       <PageTitle sub="話せる時間をあらかじめ出しておくと、相手はワンクリックで予約できます。">オフィスアワー（空き枠）</PageTitle>
 
       {(offerCount ?? 0) === 0 && (
-        <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          公開中のカードがありません。枠は<Link href="/offers/new" className="font-semibold underline">カード</Link>と組み合わせて予約されます。
+        <p className="mb-6 rounded-md bg-warn-soft px-4 py-3 text-sm text-warn">
+          公開中のカードがありません。枠は<Link href="/offers/new" className="font-bold underline">カード</Link>と組み合わせて予約されます。
         </p>
       )}
 
-      <Card>
-        <SlotForm today={todayJst()} />
-      </Card>
+      <div className="grid gap-8 lg:grid-cols-[--spacing(100)_1fr] lg:items-start">
+        <Card>
+          <h2 className="mb-4 text-lg">枠を追加する</h2>
+          <SlotForm today={todayJst()} />
+        </Card>
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-stone-700">これからの枠</h2>
-        {slots.length === 0 ? (
-          <Empty>まだ枠がありません。</Empty>
-        ) : (
-          <ul className="space-y-2">
-            {slots.map((s) => (
-              <li key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white p-3">
-                <div className="text-sm">
-                  <p className="font-semibold">{formatSlot(s.start_at, s.end_at)}</p>
-                  <p className="text-stone-600">{s.mode === "online" ? "オンライン" : "対面"}：{s.location}</p>
-                </div>
-                {s.status === "booked" ? (
-                  bookingBySlot.get(s.id) ? (
-                    <Link href={`/bookings/${bookingBySlot.get(s.id)}`}><Badge tone="ok">予約あり →</Badge></Link>
-                  ) : (
-                    <Badge tone="ok">予約あり</Badge>
-                  )
-                ) : (
-                  <form action={cancelSlot}>
-                    <input type="hidden" name="id" value={s.id} />
-                    <SubmitButton variant="ghost" pendingText="…" className="px-2 py-1 text-xs">取り消す</SubmitButton>
-                  </form>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        <section aria-labelledby="slots-heading">
+          <h2 id="slots-heading" className="mb-3 text-lg">これからの枠</h2>
+          {slots.length === 0 ? (
+            <EmptyState title="まだ枠がありません" icon={<CalendarClock className="size-7" />}>
+              昼休みや空きコマなど、15分だけ話せる時間を出してみましょう。
+            </EmptyState>
+          ) : (
+            <ul className="space-y-2">
+              {slots.map((s) => {
+                const bookingId = bookingBySlot.get(s.id);
+                return (
+                  <li key={s.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface p-3 shadow-card">
+                    <div className="min-w-0 text-sm">
+                      <p className="font-bold">{formatSlot(s.start_at, s.end_at)}</p>
+                      <p className="flex items-center gap-1 truncate text-text-sub">
+                        {s.mode === "online" ? <Video className="size-3.5 shrink-0" aria-hidden /> : <MapPin className="size-3.5 shrink-0" aria-hidden />}
+                        {s.mode === "online" ? "オンライン" : "対面"}：{s.location}
+                      </p>
+                    </div>
+                    {s.status === "booked" ? (
+                      bookingId ? (
+                        <Link href={`/bookings/${bookingId}`} className="flex min-h-11 items-center">
+                          <Badge tone="success">予約あり →</Badge>
+                        </Link>
+                      ) : (
+                        <Badge tone="success">予約あり</Badge>
+                      )
+                    ) : (
+                      <form action={cancelSlot}>
+                        <input type="hidden" name="id" value={s.id} />
+                        <SubmitButton variant="ghost" pendingText="…" className="text-xs">取り消す</SubmitButton>
+                      </form>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
