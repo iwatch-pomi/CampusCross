@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { ShieldCheck } from "lucide-react";
 import { LoginForm } from "./login-form";
 import { allowedEmailDomains } from "@/lib/constants";
-import { ABOUT, FEATURES, HERO, LANDING_FIELDS, SAFETY, SIGNUP_CTA, SITE, STEPS, TICKET_FACTS, USE_CASES } from "@/lib/content";
+import { ABOUT, FEATURES, HERO, LANDING_FIELDS, SAFETY_SYSTEM, SIGNUP_CTA, SITE, STEPS, TICKET_FACTS, USE_CASES } from "@/lib/content";
+import Link from "next/link";
 import { buttonClass, SectionHeading } from "@/components/ui";
 import { Logo } from "@/components/layout/logo";
 import { SiteFooter } from "@/components/layout/site-footer";
@@ -102,20 +103,34 @@ export default function LoginPage() {
               ))}
             </ul>
 
-            <div className="mx-auto mt-12 max-w-3xl rounded-lg border border-primary/30 bg-primary-soft p-6">
-              <h3 className="flex items-center gap-2 text-base text-primary">
-                <ShieldCheck className="size-5" aria-hidden />
-                安心して使うために
-              </h3>
-              <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                {SAFETY.map((s) => (
-                  <li key={s} className="flex gap-2">
-                    <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
-                    {s}
-                  </li>
-                ))}
-              </ul>
-            </div>
+          </div>
+        </section>
+
+        <section id="safety" className="bg-surface py-section-sm md:py-section">
+          <div className="mx-auto max-w-6xl px-4">
+            <SectionHeading label="SAFETY" title="安全・防犯のしくみ" sub="学内だからこそ、悪用はさせない。3段階で守ります。" align="center" />
+            <ol className="grid gap-5 md:grid-cols-3">
+              {SAFETY_SYSTEM.map((c, i) => (
+                <li key={c.key} className="rounded-lg border border-primary/25 bg-primary-soft p-5">
+                  <p className="text-xs font-bold tracking-wider text-point">STEP {i + 1}・{c.label}</p>
+                  <h3 className="mt-1 text-base">{c.title}</h3>
+                  <ul className="mt-3 space-y-3">
+                    {c.items.map((item) => (
+                      <li key={item.title} className="flex gap-2 text-sm">
+                        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                        <span>
+                          <span className="font-bold">{item.title}</span>
+                          <span className="block text-text-sub">{item.body}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-6 text-center text-sm">
+              <Link href="/guidelines" className="font-bold text-primary underline">利用規約・安全ガイドラインを読む</Link>
+            </p>
           </div>
         </section>
 

@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, CalendarClock, Plus, Shuffle } from "lucide-react";
+import { ArrowRight, CalendarClock, Plus, ShieldCheck, Shuffle } from "lucide-react";
 import { requireOnboarded } from "@/lib/auth";
 import { loadMasters } from "@/lib/masters";
 import { searchOffers, type OfferRow } from "@/lib/offers";
-import { formatSlot } from "@/lib/format";
+import { formatSlot, hasStarted } from "@/lib/format";
+import { placeLabel } from "@/lib/safety";
+import type { MeetingPlace } from "@/lib/types";
 import { Avatar, ButtonLink, EmptyState, SectionHeading } from "@/components/ui";
 import { CategoryIconGrid } from "@/components/category/category-icon-grid";
 import { CategorySidebar } from "@/components/category/category-sidebar";
@@ -15,16 +17,23 @@ export default async function HomePage() {
   const { supabase, profile } = await requireOnboarded();
   const { fields, fieldLabel } = await loadMasters(supabase);
 
-  const [rows, { data: upcoming }, { data: wallet }] = await Promise.all([
+  const [rows, { data: upcoming }, { data: wallet }, { data: pastBookings }, { data: myReviews }] = await Promise.all([
     searchOffers(supabase, profile, fieldLabel),
     supabase
       .from("bookings")
-      .select("id, learner_id, offer:offers(title), slot:slots(start_at, end_at, location)")
+      .select("id, learner_id, offer:offers(title), slot:slots(start_at, end_at, place, place_note)")
       .eq("status", "booked")
       .order("created_at", { ascending: false })
       .limit(20),
     supabase.from("wallets").select("balance").single(),
+    supabase.from("bookings").select("id, status, cancelled_at, slot:slots(start_at)").neq("status", "cancelled").order("created_at", { ascending: false }).limit(50),
+    supabase.from("safety_reviews").select("booking_id").eq("reviewer_id", profile.id),
   ]);
+  // まだ回答していない安全レビュー（開始時刻を過ぎた予約）
+  const reviewed = new Set((myReviews ?? []).map((r) => r.booking_id as string));
+  const pendingReview = ((pastBookings ?? []) as unknown as { id: string; slot: { start_at: string } | null }[]).find(
+    (b) => b.slot && hasStarted(b.slot.start_at) && !reviewed.has(b.id),
+  );
 
   const countByField = new Map<string, number>();
   for (const r of rows) countByField.set(r.offer.field_code, (countByField.get(r.offer.field_code) ?? 0) + 1);
@@ -44,7 +53,7 @@ export default async function HomePage() {
     { key: "new", title: "新着", sub: "最近出されたカード", href: "/search?sort=new", rows: [...rows].sort((a, b) => b.offer.created_at.localeCompare(a.offer.created_at)) },
   ];
 
-  type Upcoming = { id: string; learner_id: string; offer: { title: string } | null; slot: { start_at: string; end_at: string; location: string } | null };
+  type Upcoming = { id: string; learner_id: string; offer: { title: string } | null; slot: { start_at: string; end_at: string; place: MeetingPlace; place_note: string | null } | null };
   const next = ((upcoming ?? []) as unknown as Upcoming[])
     .filter((b) => b.slot)
     .sort((a, b) => a.slot!.start_at.localeCompare(b.slot!.start_at))[0];
@@ -82,12 +91,23 @@ export default async function HomePage() {
             <span className="min-w-0 flex-1">
               <span className="block text-xs font-bold text-primary">{next.learner_id === profile.id ? "次に学ぶ予定" : "次に教える予定"}</span>
               <span className="block truncate font-bold">{next.offer?.title}</span>
-              <span className="block truncate text-xs text-text-sub">{formatSlot(next.slot.start_at, next.slot.end_at)} ・ {next.slot.location}</span>
+              <span className="block truncate text-xs text-text-sub">{formatSlot(next.slot.start_at, next.slot.end_at)} ・ {placeLabel(next.slot)}</span>
             </span>
             <ArrowRight className="size-4 shrink-0 text-text-sub" aria-hidden />
           </Link>
         )}
       </section>
+
+      {pendingReview && (
+        <Link href={`/bookings/${pendingReview.id}`} className="-mt-8 flex items-center gap-3 rounded-lg border border-primary/30 bg-primary-soft p-4 text-sm hover:bg-primary-soft/70">
+          <ShieldCheck className="size-6 shrink-0 text-primary" aria-hidden />
+          <span className="flex-1">
+            <span className="block font-bold text-primary">安全レビューにご協力ください</span>
+            <span className="block text-xs text-text-sub">終わったセッションについて、30秒で回答できます。相手には表示されません。</span>
+          </span>
+          <ArrowRight className="size-4 shrink-0 text-primary" aria-hidden />
+        </Link>
+      )}
 
       {/* 分野からさがす */}
       <section aria-labelledby="category-heading">

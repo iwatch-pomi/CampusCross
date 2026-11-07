@@ -19,6 +19,32 @@
 
 匿名（ログインしていない）ユーザーには、どのテーブルも見えません。
 
+## 安全・防犯（`migrations/20261108000000_safety.sql`）
+
+| 追加したもの | 内容 |
+|---|---|
+| `profiles.same_gender_only` | 同性からの申し込みのみ受け付ける（公開されるのはこの設定だけ） |
+| `profile_private.gender` | 性別（本人と運営のみ）。同性限定の判定だけに使う |
+| `profiles.moderation_status` | `active` / `on_hold`（一時停止）/ `banned`（永久凍結）。`is_suspended` に自動で反映 |
+| `profiles.terms_version` / `terms_agreed_at` | 利用規約への同意。未同意だとオンボーディング未完了扱い |
+| `slots.place` / `place_note` | 場所は `cafeteria`・`library`・`campus_cafe`・`zoom` のみ。目印に個室・研究室などは書けない。最長30分 |
+| `slot_secrets` | Zoom の URL（話す人と予約した人だけが読める） |
+| `safety_reviews` | 相互の安全レビュー（回答者と運営だけが読める） |
+| `reports`（拡張） | 理由に出会い目的・連絡先の要求・場所の誘導を追加。安全レビューからの自動登録（`source = 'review'`） |
+| `moderation_actions` / `university_referrals` | 運営の対応記録と、大学への通報記録（運営のみ） |
+| `private.banned_emails` | 凍結したメールアドレスの SHA-256（再登録の拒否に使う） |
+| `has_contact_info()` とトリガー | 自己紹介・カード・ひとこと・お礼・目印に、メール・電話・URL・SNS ID を書くと拒否 |
+
+| RPC | 誰が | 内容 |
+|---|---|---|
+| `agree_terms(p_version)` | 全員 | 利用規約に同意する |
+| `bookable_teachers(p_ids)` | 全員 | 自分が申し込める相手だけを返す（同性限定・ブロック・停止を考慮。性別は返さない） |
+| `submit_safety_review(...)` | 当事者 | 安全レビューを送る。深刻なら通報として登録し、別々の2人に達したら自動で一時停止 |
+| `admin_set_status(p_user, p_status, p_note, p_report_id)` | 運営 | 一時停止・解除・永久凍結。凍結すると予約の取り消しと返却、カードの非公開、ログイン停止（`auth.users.banned_until`）、セッション削除、再登録の拒否 |
+| `admin_resolve_report(...)` / `admin_record_referral(...)` | 運営 | 通報への対応の記録／大学への通報の記録 |
+
+自動一時停止のしきい値は `private.app_config.hold_threshold`（初期値2人）、利用規約の版は `terms_version` で変えられます（画面側の `lib/content.ts` の `TERMS_VERSION` も合わせて変える）。
+
 ## RPC（クライアントから `supabase.rpc()` で呼ぶ）
 
 | 関数 | 誰が | 内容 |

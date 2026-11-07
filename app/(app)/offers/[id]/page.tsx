@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock, ChevronRight, Pencil, Shuffle, Ticket } from "lucide-react";
+import { CalendarClock, ChevronRight, Pencil, ShieldCheck, Shuffle, Ticket } from "lucide-react";
 import { isCrossField, requireOnboarded } from "@/lib/auth";
 import { loadMasters } from "@/lib/masters";
-import { loadOpenSlots, TEACHER_SELECT, toCard, type OfferWithTeacher } from "@/lib/offers";
+import { bookableTeacherIds, loadOpenSlots, TEACHER_SELECT, toCard, type OfferWithTeacher } from "@/lib/offers";
 import { categoryMeta } from "@/lib/categories";
 import { GRADE_LABEL } from "@/lib/constants";
 import { formatSlot, minutesBetween } from "@/lib/format";
+import { placeLabel } from "@/lib/safety";
 import { BookingForm } from "@/components/booking-form";
 import { Avatar, Badge, ButtonLink, Card, EmptyState, buttonClass } from "@/components/ui";
 import { SkillThumbnail } from "@/components/skill/skill-thumbnail";
@@ -30,13 +31,16 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/of
   const cross = !isMine && isCrossField(profile, t);
   const balance = wallet?.balance ?? 0;
 
-  const [openSlots, { data: others }] = await Promise.all([
+  const [openSlots, { data: others }, allowed] = await Promise.all([
     loadOpenSlots(supabase, [offer.teacher_id]),
     supabase.from("offers").select(`*, ${TEACHER_SELECT}`).eq("teacher_id", offer.teacher_id).eq("is_active", true).neq("id", offer.id).limit(6),
+    isMine ? Promise.resolve(new Set<string>()) : bookableTeacherIds(supabase, [offer.teacher_id]),
   ]);
+  // 同性限定・ブロックなどで申し込めない相手か（理由の詳細や性別は表示しない）
+  const matchable = isMine || allowed.has(offer.teacher_id);
   const slots = openSlots.filter((s) => minutesBetween(s.start_at, s.end_at) >= offer.duration_min);
   const { tone } = categoryMeta(offer.field_code);
-  const canBook = !isMine && offer.is_active && slots.length > 0 && balance >= 1;
+  const canBook = !isMine && matchable && offer.is_active && slots.length > 0 && balance >= 1;
 
   return (
     <div className="pb-24 lg:pb-0">
@@ -62,6 +66,7 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/of
             <div className="flex flex-wrap gap-1.5">
               {cross && <Badge tone="point" icon={<Shuffle className="size-3" aria-hidden />}>あなたにとって異分野</Badge>}
               <Badge category={tone}>{fieldLabel[offer.field_code]}</Badge>
+              {t.same_gender_only && <Badge tone="primary" icon={<ShieldCheck className="size-3" aria-hidden />}>同性からの申し込みのみ</Badge>}
               {!offer.is_active && <Badge tone="danger">非公開</Badge>}
             </div>
             <h1 className="text-2xl leading-snug sm:text-3xl">{offer.title}</h1>
@@ -114,7 +119,7 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/of
               <div className="min-w-0">
                 <p className="text-lg font-bold">{t.display_name}</p>
                 <p className="text-sm text-text-sub">
-                  {[t.faculty?.name, t.department, t.grade && GRADE_LABEL[t.grade], t.field_code && fieldLabel[t.field_code]].filter(Boolean).join(" ・ ")}
+                  {[t.faculty?.name, t.grade && GRADE_LABEL[t.grade], t.field_code && fieldLabel[t.field_code]].filter(Boolean).join(" ・ ")}
                 </p>
                 {t.bio && <p className="mt-2 whitespace-pre-wrap text-sm">{t.bio}</p>}
               </div>
@@ -140,6 +145,10 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/of
               </div>
             ) : !offer.is_active ? (
               <EmptyState title="このカードは現在非公開です" />
+            ) : !matchable ? (
+              <EmptyState title="このカードには申し込めません" icon={<ShieldCheck className="size-7" />}>
+                話す人の安心設定（同性からの申し込みのみ など）により、申し込みを受け付けていません。
+              </EmptyState>
             ) : slots.length === 0 ? (
               <EmptyState title="いま予約できる空き枠はありません" icon={<CalendarClock className="size-7" />}>
                 しばらくしてからもう一度見てみてください。
@@ -156,7 +165,7 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/of
               <BookingForm
                 offerId={offer.id}
                 balance={balance}
-                slots={slots.map((s) => ({ id: s.id, label: formatSlot(s.start_at, s.end_at), place: s.location, online: s.mode === "online" }))}
+                slots={slots.map((s) => ({ id: s.id, label: formatSlot(s.start_at, s.end_at), place: placeLabel(s), online: s.mode === "online" }))}
               />
             )}
           </Card>

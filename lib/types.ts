@@ -1,5 +1,8 @@
 export type OfferKind = "topic" | "faculty_guide";
 export type MeetingMode = "in_person" | "online";
+export type MeetingPlace = "cafeteria" | "library" | "campus_cafe" | "zoom";
+export type ModerationStatus = "active" | "on_hold" | "banned";
+export type Gender = "female" | "male" | "unspecified";
 export type SlotStatus = "open" | "booked" | "cancelled";
 export type BookingStatus = "booked" | "completed" | "cancelled";
 
@@ -10,20 +13,24 @@ export type Profile = {
   id: string;
   display_name: string;
   faculty_id: string | null;
-  department: string | null;
   field_code: string | null;
   grade: string | null;
   bio: string | null;
+  same_gender_only: boolean;
+  terms_version: string | null;
+  terms_agreed_at: string | null;
   onboarded: boolean;
   is_admin: boolean;
   is_suspended: boolean;
+  moderation_status: ModerationStatus;
   created_at: string;
 };
 
 /** 他の人に見せるプロフィールの一部 */
+/** 他の人に見せるプロフィール（ニックネーム・学部・学年まで。本名・学科・性別は出さない） */
 export type PublicProfile = Pick<
   Profile,
-  "id" | "display_name" | "faculty_id" | "field_code" | "grade" | "department" | "bio"
+  "id" | "display_name" | "faculty_id" | "field_code" | "grade" | "bio" | "same_gender_only"
 > & { faculty: { name: string } | null };
 
 export type Offer = {
@@ -46,8 +53,9 @@ export type Slot = {
   teacher_id: string;
   start_at: string;
   end_at: string;
+  place: MeetingPlace;
+  place_note: string | null;
   mode: MeetingMode;
-  location: string;
   status: SlotStatus;
 };
 

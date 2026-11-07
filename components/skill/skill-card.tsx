@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, Shuffle, Ticket } from "lucide-react";
+import { CalendarClock, ShieldCheck, Shuffle, Ticket } from "lucide-react";
 import { Avatar, Badge } from "@/components/ui";
 import { categoryMeta } from "@/lib/categories";
 import { SkillThumbnail } from "./skill-thumbnail";
@@ -17,6 +17,8 @@ export type SkillCardData = {
   tickets?: number;
   teacher: { id: string; name: string; faculty?: string | null; grade?: string | null };
   cross?: boolean;
+  /** 話す人が「同性からの申し込みのみ」にしている */
+  sameGenderOnly?: boolean;
   nextSlotLabel?: string | null;
   tags?: string[];
 };
@@ -45,6 +47,11 @@ export function SkillCard({ data, className = "" }: { data: SkillCardData; class
               </Badge>
             )}
             <Badge category={tone}>{data.fieldLabel}</Badge>
+            {data.sameGenderOnly && (
+              <Badge tone="primary" icon={<ShieldCheck className="size-3" aria-hidden />}>
+                同性のみ
+              </Badge>
+            )}
           </div>
           <h3 className="line-clamp-2 text-base font-bold leading-snug group-hover:text-primary">{data.title}</h3>
           {data.hook && <p className="line-clamp-1 text-sm text-text-sub">{data.hook}</p>}

@@ -7,6 +7,7 @@ import { SlotForm } from "@/components/slot-form";
 import { SubmitButton } from "@/components/form-bits";
 import { Badge, Card, EmptyState, PageTitle } from "@/components/ui";
 import { formatSlot, todayJst } from "@/lib/format";
+import { placeLabel } from "@/lib/safety";
 import type { Slot } from "@/lib/types";
 
 export const metadata: Metadata = { title: "空き枠" };
@@ -60,7 +61,7 @@ export default async function SlotsPage() {
                       <p className="font-bold">{formatSlot(s.start_at, s.end_at)}</p>
                       <p className="flex items-center gap-1 truncate text-text-sub">
                         {s.mode === "online" ? <Video className="size-3.5 shrink-0" aria-hidden /> : <MapPin className="size-3.5 shrink-0" aria-hidden />}
-                        {s.mode === "online" ? "オンライン" : "対面"}：{s.location}
+                        {placeLabel(s)}
                       </p>
                     </div>
                     {s.status === "booked" ? (

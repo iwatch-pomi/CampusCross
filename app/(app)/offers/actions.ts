@@ -3,9 +3,10 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
-import { requireOnboarded } from "@/lib/auth";
+import { friendlyDbError, requireOnboarded } from "@/lib/auth";
 import { notify } from "@/lib/notify";
 import { formatSlot } from "@/lib/format";
+import { CONTACT_INFO_ERROR, hasContactInfo, placeLabel } from "@/lib/safety";
 import type { ActionState } from "@/lib/types";
 
 const text = (fd: FormData, key: string) => {
@@ -37,6 +38,7 @@ function validate(o: ReturnType<typeof parseOffer>): string | null {
   if (!o.field_code) return "分野を選んでください";
   if ((o.description?.length ?? 0) > 1000) return "説明は1000文字以内にしてください";
   if ((o.want_to_hear?.length ?? 0) > 140) return "「あなたの分野から聞きたいこと」は140文字以内にしてください";
+  if ([o.title, o.hook, o.description, o.want_to_hear].some(hasContactInfo)) return CONTACT_INFO_ERROR;
   return null;
 }
 
@@ -51,7 +53,7 @@ export async function createOffer(_prev: ActionState, formData: FormData): Promi
     .insert({ ...offer, teacher_id: profile.id })
     .select("id")
     .single();
-  if (error || !data) return { error: "カードを作成できませんでした" };
+  if (error || !data) return { error: friendlyDbError(error, "カードを作成できませんでした") };
 
   revalidatePath("/");
   redirect(`/offers/${data.id}?created=1`);
@@ -69,7 +71,7 @@ export async function updateOffer(_prev: ActionState, formData: FormData): Promi
     .update({ ...offer, is_active: formData.get("is_active") === "on" }, { count: "exact" })
     .eq("id", id)
     .eq("teacher_id", profile.id);
-  if (error || count === 0) return { error: "カードを更新できませんでした" };
+  if (error || count === 0) return { error: friendlyDbError(error, "カードを更新できませんでした") };
 
   revalidatePath("/", "layout");
   redirect(`/offers/${id}`);
@@ -82,6 +84,7 @@ export async function bookSlot(_prev: ActionState, formData: FormData): Promise<
   const message = text(formData, "message");
   if (!slotId) return { error: "日時を選んでください" };
   if ((message?.length ?? 0) > 300) return { error: "ひとことは300文字以内にしてください" };
+  if (hasContactInfo(message)) return { error: CONTACT_INFO_ERROR };
 
   const { data: bookingId, error } = await supabase.rpc("book_slot", {
     p_slot_id: slotId,
@@ -92,14 +95,14 @@ export async function bookSlot(_prev: ActionState, formData: FormData): Promise<
 
   const [{ data: offer }, { data: slot }] = await Promise.all([
     supabase.from("offers").select("title, teacher_id").eq("id", offerId).single(),
-    supabase.from("slots").select("start_at, end_at, location").eq("id", slotId).single(),
+    supabase.from("slots").select("start_at, end_at, place, place_note").eq("id", slotId).single(),
   ]);
   if (offer && slot) {
     after(() =>
       notify({
         userId: offer.teacher_id,
         subject: "予約が入りました",
-        body: `${profile.display_name}さんが「${offer.title}」を予約しました。\n日時: ${formatSlot(slot.start_at, slot.end_at)}\n場所: ${slot.location}${message ? `\n\nひとこと: ${message}` : ""}`,
+        body: `${profile.display_name}さんが「${offer.title}」を予約しました。\n日時: ${formatSlot(slot.start_at, slot.end_at)}\n場所: ${placeLabel(slot)}${message ? `\n\nひとこと: ${message}` : ""}`,
         path: `/bookings/${bookingId}`,
       }),
     );

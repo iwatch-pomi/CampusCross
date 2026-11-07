@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Faculty, Field } from "./types";
+import type { Faculty, Field, Gender } from "./types";
 
 export async function loadMasters(supabase: SupabaseClient) {
   const [{ data: faculties }, { data: fields }] = await Promise.all([
@@ -20,8 +20,13 @@ export async function loadMasters(supabase: SupabaseClient) {
 export async function loadContact(supabase: SupabaseClient, userId: string) {
   const { data } = await supabase
     .from("profile_private")
-    .select("university_email, contact_email, notify_by_email")
+    .select("university_email, contact_email, notify_by_email, gender")
     .eq("user_id", userId)
     .single();
-  return data ?? { university_email: "", contact_email: null, notify_by_email: true };
+  return (data ?? { university_email: "", contact_email: null, notify_by_email: true, gender: "unspecified" }) as {
+    university_email: string;
+    contact_email: string | null;
+    notify_by_email: boolean;
+    gender: Gender;
+  };
 }

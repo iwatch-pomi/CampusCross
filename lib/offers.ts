@@ -10,7 +10,14 @@ import type { SkillCardData } from "@/components/skill/skill-card";
 export type OfferWithTeacher = Offer & { teacher: PublicProfile };
 
 export const TEACHER_SELECT =
-  "teacher:profiles!offers_teacher_id_fkey(id, display_name, faculty_id, field_code, grade, department, bio, faculty:faculties(name))";
+  "teacher:profiles!offers_teacher_id_fkey(id, display_name, faculty_id, field_code, grade, bio, same_gender_only, faculty:faculties(name))";
+
+/** 自分が申し込める相手（同性限定・ブロック・停止を DB 側で判定）。性別そのものは返ってこない */
+export async function bookableTeacherIds(supabase: SupabaseClient, ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const { data } = await supabase.rpc("bookable_teachers", { p_ids: ids });
+  return new Set(((data ?? []) as unknown[]).map((row) => (typeof row === "string" ? row : (row as { bookable_teachers: string }).bookable_teachers)));
+}
 
 /** 予約の締め切り（開始1時間前）を過ぎていない空き枠 */
 export function bookableSince(): string {
@@ -70,7 +77,11 @@ export async function searchOffers(
 
   const { data } = await query;
   const needle = params.q?.trim().toLowerCase() ?? "";
-  const offers = ((data ?? []) as OfferWithTeacher[]).filter((o) => {
+  const all = (data ?? []) as OfferWithTeacher[];
+  // 同性限定などで申し込めない相手のカードは、一覧に出さない
+  const allowed = await bookableTeacherIds(supabase, [...new Set(all.map((o) => o.teacher_id))]);
+  const offers = all.filter((o) => {
+    if (!allowed.has(o.teacher_id)) return false;
     if (params.faculty && o.teacher.faculty_id !== params.faculty) return false;
     if (needle) {
       const hay = [o.title, o.hook, o.description ?? "", o.want_to_hear ?? "", ...o.tags].join(" ").toLowerCase();
@@ -117,6 +128,7 @@ export function toCard(o: OfferWithTeacher, cross: boolean, open: Slot[], fieldL
       grade: o.teacher.grade ? GRADE_LABEL[o.teacher.grade] : null,
     },
     cross,
+    sameGenderOnly: o.teacher.same_gender_only,
     nextSlotLabel: open[0] ? formatSlot(open[0].start_at, open[0].end_at).split("〜")[0] : null,
     tags: o.tags,
   };

@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock, MapPin, MessageSquareText, Shuffle, Video } from "lucide-react";
+import { CalendarClock, MapPin, MessageSquareText, ShieldCheck, Shuffle, Video } from "lucide-react";
 import { requireOnboarded } from "@/lib/auth";
-import { CancelForm, CompleteForm, SafetyForms, ThanksForm } from "@/components/booking-actions";
+import { CancelForm, CompleteForm, SafetyForms, SafetyReviewForm, ThanksForm } from "@/components/booking-actions";
+import { placeLabel, PLACES } from "@/lib/safety";
 import { Avatar, Badge, Card } from "@/components/ui";
 import { TestimonialCard } from "@/components/marketing/testimonial-card";
 import { GRADE_LABEL } from "@/lib/constants";
@@ -17,7 +18,7 @@ type Row = Booking & {
   teacher: PublicProfile;
 };
 
-const PERSON = "id, display_name, faculty_id, field_code, grade, department, bio, faculty:faculties(name)";
+const PERSON = "id, display_name, faculty_id, field_code, grade, bio, same_gender_only, faculty:faculties(name)";
 
 export default async function BookingPage({ params, searchParams }: PageProps<"/bookings/[id]">) {
   const { id } = await params;
@@ -36,10 +37,20 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
   if (!data) notFound();
   const b = data as Row;
 
+  const [{ data: secret }, { data: myReview }] = await Promise.all([
+    b.slot.place === "zoom" && b.status !== "cancelled"
+      ? supabase.from("slot_secrets").select("meeting_url").eq("slot_id", b.slot_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase.from("safety_reviews").select("id").eq("booking_id", b.id).eq("reviewer_id", profile.id).maybeSingle(),
+  ]);
+
   const iAmLearner = b.learner_id === profile.id;
   const other = iAmLearner ? b.teacher : b.learner;
   const started = hasStarted(b.slot.start_at);
   const online = b.slot.mode === "online";
+  // 安全レビュー: 開始時刻を過ぎていて、開始前のキャンセルでなく、まだ回答していないとき
+  const cancelledBeforeStart = b.status === "cancelled" && !!b.cancelled_at && b.cancelled_at < b.slot.start_at;
+  const canReview = started && !cancelledBeforeStart && !myReview;
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
@@ -63,8 +74,13 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
             </h1>
             <div className="grid gap-3 sm:grid-cols-2">
               <Info icon={<CalendarClock className="size-5" />} label="日時">{formatSlot(b.slot.start_at, b.slot.end_at)}</Info>
-              <Info icon={online ? <Video className="size-5" /> : <MapPin className="size-5" />} label={online ? "オンライン" : "場所（対面）"}>
-                {b.slot.location}
+              <Info icon={online ? <Video className="size-5" /> : <MapPin className="size-5" />} label={online ? "オンライン" : "場所（学内の公共スペース）"}>
+                {placeLabel(b.slot)}
+                {secret?.meeting_url && (
+                  <a href={secret.meeting_url} target="_blank" rel="noopener noreferrer" className="mt-1 block break-all text-primary underline">
+                    {secret.meeting_url}
+                  </a>
+                )}
               </Info>
             </div>
             {b.message && (
@@ -85,8 +101,26 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
       </div>
 
       {b.status === "booked" && (
-        <p className="rounded-md bg-bg-section px-4 py-3 text-xs text-text-sub">
-          当日は表示名で声をかけてください。連絡先の交換は任意です。はじめての相手とは人目のある場所で。
+        <div className="space-y-1 rounded-md bg-bg-section px-4 py-3 text-xs text-text-sub">
+          <p className="flex items-center gap-1.5 font-bold text-primary">
+            <ShieldCheck className="size-4" aria-hidden />
+            当日の約束
+          </p>
+          <p>・場所は「{PLACES[b.slot.place].label}」から移動しない（個室・研究室・自宅などへ誘われたら断って通報）</p>
+          <p>・時間は{b.offer.duration_min}分まで。連絡先やSNSの交換は求めない・断ってよい</p>
+          <p>・当日は表示名（ニックネーム）で声をかける</p>
+        </div>
+      )}
+
+      {canReview && (
+        <Card>
+          <SafetyReviewForm bookingId={b.id} otherName={other.display_name} />
+        </Card>
+      )}
+      {myReview && (
+        <p className="flex items-center gap-1.5 text-xs text-text-sub">
+          <ShieldCheck className="size-4 text-success" aria-hidden />
+          安全レビューは回答済みです（相手には表示されません）
         </p>
       )}
 

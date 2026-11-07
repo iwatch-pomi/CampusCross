@@ -12,6 +12,7 @@
 
 ## ドキュメント
 
+- [サービス仕様書（学内相談用・安全・防犯システムを含む）](docs/SPEC.md)
 - [プロダクト要件定義書（PRD）](docs/PRD.md)
 - [Supabase のスキーマとセットアップ](supabase/README.md)
 
@@ -32,6 +33,9 @@ Next.js 16（App Router）／ Tailwind CSS 4 ／ Supabase（Auth・Postgres）�
 | `/slots` | オフィスアワーの枠の登録（毎週くり返しも可）・取り消し |
 | `/bookings/[id]` | 予約の詳細。キャンセル、完了とお礼コメント、通報・ブロック |
 | `/me` | 教えた実績とお礼コメント、これからの予約、自分のカード、チケットの履歴 |
+| `/guidelines` | 利用規約・安全ガイドライン（未ログインでも読める） |
+| `/suspended` | 一時停止中の人に表示する画面 |
+| `/admin`・`/admin/users/[id]` | 運営用。通報・安全レビューの確認、一時停止・永久凍結、大学への通報の記録 |
 
 ## デザインシステム
 
@@ -64,6 +68,15 @@ Next.js 16（App Router）／ Tailwind CSS 4 ／ Supabase（Auth・Postgres）�
    npm run dev
    ```
    ログインコードのメールは、ローカルの Supabase に付属するメール確認画面（`supabase start` が表示する Mailpit の URL）で読めます。ローカルのメールテンプレートは `supabase/templates/otp.html` です。
+
+## 運営の権限を付ける
+
+運営用ページ（`/admin`）は、`profiles.is_admin` が true の人だけが使えます。Supabase の SQL エディタで付けます。
+
+```sql
+update public.profiles set is_admin = true
+ where id = (select id from auth.users where email = 'あなたの大学メール');
+```
 
 ## 本番に出す（Vercel）
 

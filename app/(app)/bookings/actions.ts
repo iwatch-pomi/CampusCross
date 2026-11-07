@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
-import { requireOnboarded } from "@/lib/auth";
+import { friendlyDbError, requireOnboarded } from "@/lib/auth";
+import { CONTACT_INFO_ERROR, hasContactInfo, REPORT_REASONS } from "@/lib/safety";
 import { notify } from "@/lib/notify";
 import type { ActionState } from "@/lib/types";
 
@@ -29,11 +30,12 @@ function offerTitle(booking: { offer: unknown }): string {
 export async function cancelBooking(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const id = String(formData.get("booking_id") ?? "");
   const reason = text(formData, "reason");
+  if (hasContactInfo(reason)) return { error: CONTACT_INFO_ERROR };
   const { supabase, profile, booking } = await loadBooking(id);
   if (!booking) return { error: "予約が見つかりません" };
 
   const { error } = await supabase.rpc("cancel_booking", { p_booking_id: id, p_reason: reason });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyDbError(error, "キャンセルできませんでした") };
 
   const other = booking.learner_id === profile.id ? booking.teacher_id : booking.learner_id;
   after(() =>
@@ -52,11 +54,12 @@ export async function completeBooking(_prev: ActionState, formData: FormData): P
   const id = String(formData.get("booking_id") ?? "");
   const thanks = text(formData, "thanks");
   if ((thanks?.length ?? 0) > 300) return { error: "お礼コメントは300文字以内にしてください" };
+  if (hasContactInfo(thanks)) return { error: CONTACT_INFO_ERROR };
   const { supabase, profile, booking } = await loadBooking(id);
   if (!booking) return { error: "予約が見つかりません" };
 
   const { error } = await supabase.rpc("complete_booking", { p_booking_id: id, p_thanks: thanks });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyDbError(error, "完了にできませんでした") };
 
   after(() =>
     notify({
@@ -75,11 +78,12 @@ export async function sendThanks(_prev: ActionState, formData: FormData): Promis
   const thanks = text(formData, "thanks");
   if (!thanks) return { error: "お礼コメントを入力してください" };
   if (thanks.length > 300) return { error: "お礼コメントは300文字以内にしてください" };
+  if (hasContactInfo(thanks)) return { error: CONTACT_INFO_ERROR };
   const { supabase, profile, booking } = await loadBooking(id);
   if (!booking) return { error: "予約が見つかりません" };
 
   const { error } = await supabase.rpc("send_thanks", { p_booking_id: id, p_thanks: thanks });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyDbError(error, "お礼コメントを送れませんでした") };
 
   after(() =>
     notify({
@@ -105,11 +109,11 @@ export async function reportUser(_prev: ActionState, formData: FormData): Promis
     reporter_id: profile.id,
     target_user_id: target,
     booking_id: id,
-    reason: ["solicitation", "harassment", "no_show", "other"].includes(reason) ? reason : "other",
+    reason: REPORT_REASONS.some((r) => r.code === reason) ? reason : "other",
     detail,
   });
   if (error) return { error: "通報を送れませんでした" };
-  return { ok: true, message: "通報を受け付けました。運営が確認します" };
+  return { ok: true, message: "通報を受け付けました。運営が確認し、不適切な行為が確認された場合は相手を永久に利用停止にします" };
 }
 
 export async function blockUser(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -121,4 +125,31 @@ export async function blockUser(_prev: ActionState, formData: FormData): Promise
   const { error } = await supabase.from("blocks").insert({ blocker_id: profile.id, blocked_id: target });
   if (error && !error.message.includes("duplicate")) return { error: "ブロックできませんでした" };
   return { ok: true, message: "ブロックしました。今後この相手とは予約が成立しません" };
+}
+
+export async function submitSafetyReview(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const id = String(formData.get("booking_id") ?? "");
+  const feeling = String(formData.get("feeling") ?? "");
+  const flags = formData.getAll("flags").map(String);
+  const comment = text(formData, "comment");
+  if (!["safe", "uneasy", "problem"].includes(feeling)) return { error: "どうだったかを選んでください" };
+  if ((comment?.length ?? 0) > 1000) return { error: "コメントは1000文字以内にしてください" };
+
+  const { supabase } = await requireOnboarded();
+  const { error } = await supabase.rpc("submit_safety_review", {
+    p_booking_id: id,
+    p_feeling: feeling,
+    p_flags: flags,
+    p_comment: comment,
+  });
+  if (error) return { error: friendlyDbError(error, "安全レビューを送れませんでした") };
+
+  // ここでは再描画しない（送信後の案内を画面に残すため。他の画面は次の遷移で最新になる）
+  const serious = feeling === "problem" || flags.some((f) => ["dating", "contact_pushing", "solicitation", "harassment", "place_change"].includes(f));
+  return {
+    ok: true,
+    message: serious
+      ? "回答ありがとうございます。運営が確認します。必要なら下の「困ったことがあったら」からブロックもできます"
+      : "回答ありがとうございます。相手には表示されません",
+  };
 }

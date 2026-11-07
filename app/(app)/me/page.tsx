@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CalendarClock, LogOut, Pencil, Plus, Ticket } from "lucide-react";
+import { ArrowRight, CalendarClock, LogOut, Pencil, Plus, ShieldAlert, ShieldCheck, Ticket } from "lucide-react";
 import { requireOnboarded } from "@/lib/auth";
 import { loadMasters } from "@/lib/masters";
 import { Avatar, Badge, ButtonLink, Card, EmptyState, SectionHeading, buttonClass } from "@/components/ui";
@@ -8,12 +8,13 @@ import { TestimonialCard } from "@/components/marketing/testimonial-card";
 import { CategoryIcon } from "@/components/category/category-icon";
 import { GRADE_LABEL, KIND_LABEL, LEDGER_LABEL } from "@/lib/constants";
 import { formatDateTime, formatSlot, hasStarted } from "@/lib/format";
+import { placeLabel } from "@/lib/safety";
 import type { Booking, LedgerEntry, Offer, Slot } from "@/lib/types";
 
 export const metadata: Metadata = { title: "マイページ" };
 
 type BookingRow = Booking & {
-  slot: Pick<Slot, "start_at" | "end_at" | "location">;
+  slot: Pick<Slot, "start_at" | "end_at" | "place" | "place_note">;
   offer: Pick<Offer, "id" | "title" | "kind">;
   learner: { id: string; display_name: string; grade: string | null; faculty: { name: string } | null };
   teacher: { display_name: string };
@@ -30,7 +31,7 @@ export default async function MePage() {
       supabase
         .from("bookings")
         .select(
-          "*, slot:slots(start_at, end_at, location), offer:offers(id, title, kind), learner:profiles!bookings_learner_id_fkey(id, display_name, grade, faculty:faculties(name)), teacher:profiles!bookings_teacher_id_fkey(display_name)",
+          "*, slot:slots(start_at, end_at, place, place_note), offer:offers(id, title, kind), learner:profiles!bookings_learner_id_fkey(id, display_name, grade, faculty:faculties(name)), teacher:profiles!bookings_teacher_id_fkey(display_name)",
         )
         .order("created_at", { ascending: false })
         .limit(200),
@@ -57,7 +58,7 @@ export default async function MePage() {
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl">{profile.display_name}</h1>
             <p className="text-sm text-text-sub">
-              {[profile.faculty_id && facultyName[profile.faculty_id], profile.department, profile.grade && GRADE_LABEL[profile.grade]].filter(Boolean).join(" ・ ")}
+              {[profile.faculty_id && facultyName[profile.faculty_id], profile.grade && GRADE_LABEL[profile.grade]].filter(Boolean).join(" ・ ")}
             </p>
             {profile.field_code && (
               <div className="mt-2 flex items-center gap-2 text-sm font-bold">
@@ -72,7 +73,18 @@ export default async function MePage() {
           </ButtonLink>
         </div>
         {profile.bio && <p className="mt-4 whitespace-pre-wrap rounded-md bg-surface/80 p-3 text-sm">{profile.bio}</p>}
+        <p className="mt-4 flex items-center gap-1.5 text-xs text-text-sub">
+          <ShieldCheck className="size-4 text-primary" aria-hidden />
+          {profile.same_gender_only ? "同性からの申し込みのみ受け付けています" : "安心設定：同性限定はオフ"}（編集から変更できます）
+        </p>
       </section>
+
+      {profile.is_admin && (
+        <ButtonLink href="/admin" variant="outline" className="w-full">
+          <ShieldAlert className="size-4" aria-hidden />
+          運営ページ（通報の確認・利用停止）
+        </ButtonLink>
+      )}
 
       {/* 教えた実績 */}
       <section id="teaching" aria-labelledby="teaching-heading" className="scroll-mt-20">
@@ -143,7 +155,7 @@ export default async function MePage() {
                       </div>
                       <p className="truncate font-bold">{b.offer.title}</p>
                       <p className="truncate text-xs text-text-sub">
-                        {formatSlot(b.slot.start_at, b.slot.end_at)} ・ {b.slot.location} ・ {iTeach ? b.learner.display_name : b.teacher.display_name}さん
+                        {formatSlot(b.slot.start_at, b.slot.end_at)} ・ {placeLabel(b.slot)} ・ {iTeach ? b.learner.display_name : b.teacher.display_name}さん
                       </p>
                     </div>
                     <ArrowRight className="size-5 shrink-0 text-text-sub" aria-hidden />

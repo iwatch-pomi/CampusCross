@@ -13,7 +13,7 @@ export default async function EditProfilePage() {
     <div className="mx-auto max-w-2xl">
       <PageTitle>プロフィールを編集</PageTitle>
       <Card className="sm:p-7">
-        <ProfileForm profile={profile} contact={contact} faculties={faculties} fields={fields} next="/me" submitLabel="保存する" />
+        <ProfileForm profile={profile} contact={contact} faculties={faculties} fields={fields} next="/me" submitLabel="保存する" needsTermsAgreement={false} />
       </Card>
     </div>
   );

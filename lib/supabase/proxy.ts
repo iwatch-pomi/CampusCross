@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/guidelines"];
 
 /** セッション cookie を更新し、未ログインならログイン画面へ送る */
 export async function updateSession(request: NextRequest) {

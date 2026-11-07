@@ -1,9 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireOnboarded } from "@/lib/auth";
+import { friendlyDbError, requireOnboarded } from "@/lib/auth";
 import { jstToIso } from "@/lib/format";
-import type { ActionState } from "@/lib/types";
+import { CONTACT_INFO_ERROR, hasContactInfo, PLACE_ORDER } from "@/lib/safety";
+import type { ActionState, MeetingPlace } from "@/lib/types";
+
+const ZOOM_URL = /^https:\/\/([a-z0-9-]+\.)*zoom\.us\/\S*$/i;
+const CLOSED_ROOM = /(研究室|ラボ|lab|個室|自宅|実家|家で|部屋|寮|アパート|マンション|ホテル|カラオケ|車)/i;
 
 export async function createSlot(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { supabase, profile } = await requireOnboarded();
@@ -11,14 +15,23 @@ export async function createSlot(_prev: ActionState, formData: FormData): Promis
   const date = String(formData.get("date") ?? "");
   const time = String(formData.get("time") ?? "");
   const minutes = formData.get("minutes") === "30" ? 30 : 15;
-  const mode = formData.get("mode") === "online" ? "online" : "in_person";
-  const location = String(formData.get("location") ?? "").trim();
+  const place = String(formData.get("place") ?? "") as MeetingPlace;
+  const placeNote = String(formData.get("place_note") ?? "").trim() || null;
+  const meetingUrl = String(formData.get("meeting_url") ?? "").trim();
   const repeat = Math.min(Math.max(Number(formData.get("repeat") ?? 1) || 1, 1), 8);
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
     return { error: "日付と開始時刻を入力してください" };
   }
-  if (!location || location.length > 100) return { error: "場所を100文字以内で入力してください" };
+  if (!PLACE_ORDER.includes(place)) return { error: "場所を選んでください" };
+  if (place !== "zoom" && placeNote) {
+    if (placeNote.length > 40) return { error: "目印は40文字以内にしてください" };
+    if (CLOSED_ROOM.test(placeNote)) return { error: "目印に個室・研究室・自宅などは書けません（公共スペース内の目印だけにしてください）" };
+    if (hasContactInfo(placeNote)) return { error: CONTACT_INFO_ERROR };
+  }
+  if (place === "zoom" && !ZOOM_URL.test(meetingUrl)) {
+    return { error: "ZoomのURL（https://〜zoom.us/〜）を入力してください。予約した人にだけ表示されます" };
+  }
 
   const start = new Date(jstToIso(date, time));
   if (start.getTime() <= Date.now()) return { error: "これから先の日時を選んでください" };
@@ -30,17 +43,27 @@ export async function createSlot(_prev: ActionState, formData: FormData): Promis
       teacher_id: profile.id,
       start_at: s.toISOString(),
       end_at: new Date(s.getTime() + minutes * 60000).toISOString(),
-      mode,
-      location,
+      place,
+      place_note: place === "zoom" ? null : placeNote,
     };
   });
 
-  const { error } = await supabase.from("slots").insert(rows);
-  if (error) {
-    if (error.message.includes("slots_no_overlap")) {
+  const { data: created, error } = await supabase.from("slots").insert(rows).select("id");
+  if (error || !created) {
+    if (error?.message.includes("slots_no_overlap")) {
       return { error: "すでに登録している枠と時間が重なっています" };
     }
-    return { error: "枠を登録できませんでした" };
+    return { error: friendlyDbError(error, "枠を登録できませんでした") };
+  }
+
+  if (place === "zoom") {
+    const { error: secretError } = await supabase
+      .from("slot_secrets")
+      .insert(created.map((s) => ({ slot_id: s.id, meeting_url: meetingUrl })));
+    if (secretError) {
+      await supabase.from("slots").delete().in("id", created.map((s) => s.id));
+      return { error: friendlyDbError(secretError, "ZoomのURLを保存できませんでした") };
+    }
   }
 
   revalidatePath("/", "layout");

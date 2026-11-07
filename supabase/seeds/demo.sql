@@ -31,7 +31,8 @@ begin
     end if;
     select id into v_fac from public.faculties where name = u.faculty;
     update public.profiles
-       set display_name = u.name, faculty_id = v_fac, field_code = u.field, grade = u.grade, bio = u.bio
+       set display_name = u.name, faculty_id = v_fac, field_code = u.field, grade = u.grade, bio = u.bio,
+           terms_version = (select terms_version from private.app_config), terms_agreed_at = now()
      where id = u.id;
   end loop;
 end $$;
@@ -51,19 +52,25 @@ insert into public.offers (id, teacher_id, kind, title, hook, description, want_
 on conflict (id) do nothing;
 
 -- 空き枠（今日から数日後の昼休みなど）
-insert into public.slots (teacher_id, start_at, end_at, mode, location)
+insert into public.slots (teacher_id, start_at, end_at, place, place_note)
 select t.teacher_id,
        date_trunc('day', now() at time zone 'Asia/Tokyo') + make_interval(days => t.d) + t.at - interval '9 hours',
        date_trunc('day', now() at time zone 'Asia/Tokyo') + make_interval(days => t.d) + t.at + make_interval(mins => t.len) - interval '9 hours',
-       t.mode::public.meeting_mode, t.place
+       t.place::public.meeting_place, t.note
 from (values
-  ('11111111-0000-0000-0000-000000000001'::uuid, 1, interval '12 hours 20 minutes', 15, 'in_person', '中央図書館 入口付近'),
-  ('11111111-0000-0000-0000-000000000001'::uuid, 3, interval '16 hours 30 minutes', 30, 'in_person', '学生プラザ 1F'),
-  ('11111111-0000-0000-0000-000000000002'::uuid, 2, interval '12 hours 20 minutes', 15, 'in_person', '生協の食堂'),
-  ('11111111-0000-0000-0000-000000000003'::uuid, 1, interval '12 hours 30 minutes', 15, 'in_person', '学部棟のラウンジ'),
-  ('11111111-0000-0000-0000-000000000004'::uuid, 4, interval '17 hours', 30, 'online', 'Google Meet（URLは予約後に連絡）'),
-  ('11111111-0000-0000-0000-000000000005'::uuid, 2, interval '13 hours', 30, 'in_person', '中央図書館 2F'),
-  ('11111111-0000-0000-0000-000000000006'::uuid, 5, interval '12 hours 20 minutes', 15, 'in_person', '学生プラザ'),
-  ('11111111-0000-0000-0000-000000000008'::uuid, 6, interval '18 hours', 15, 'online', 'Zoom（URLは予約後に連絡）')
-) as t(teacher_id, d, at, len, mode, place)
+  ('11111111-0000-0000-0000-000000000001'::uuid, 1, interval '12 hours 20 minutes', 15, 'library', '中央図書館 1F 入口付近'),
+  ('11111111-0000-0000-0000-000000000001'::uuid, 3, interval '16 hours 30 minutes', 30, 'campus_cafe', '窓側のカウンター'),
+  ('11111111-0000-0000-0000-000000000002'::uuid, 2, interval '12 hours 20 minutes', 15, 'cafeteria', '入口すぐのテーブル'),
+  ('11111111-0000-0000-0000-000000000003'::uuid, 1, interval '12 hours 30 minutes', 15, 'library', null),
+  ('11111111-0000-0000-0000-000000000004'::uuid, 4, interval '17 hours', 30, 'zoom', null),
+  ('11111111-0000-0000-0000-000000000005'::uuid, 2, interval '13 hours', 30, 'library', '2F グループ学習エリア'),
+  ('11111111-0000-0000-0000-000000000006'::uuid, 5, interval '12 hours 20 minutes', 15, 'cafeteria', null),
+  ('11111111-0000-0000-0000-000000000008'::uuid, 6, interval '18 hours', 15, 'zoom', null)
+) as t(teacher_id, d, at, len, place, note)
 where not exists (select 1 from public.slots s where s.teacher_id = t.teacher_id and s.start_at > now());
+
+-- Zoom の枠の URL（予約した人にだけ見える）
+insert into public.slot_secrets (slot_id, meeting_url)
+select s.id, 'https://zoom.us/j/0000000000'
+  from public.slots s
+ where s.place = 'zoom' and not exists (select 1 from public.slot_secrets x where x.slot_id = s.id);

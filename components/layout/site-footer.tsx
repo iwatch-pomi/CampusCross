@@ -14,6 +14,11 @@ export function SiteFooter({ loggedIn, stickyBar = false }: { loggedIn: boolean;
             {SITE.scope}／チケットは換金・譲渡できません
           </p>
         </div>
+        {!loggedIn && (
+          <nav aria-label="フッター">
+            <Link href="/guidelines" className="flex min-h-11 items-center text-sm text-text-sub hover:text-primary">利用規約・安全ガイドライン</Link>
+          </nav>
+        )}
         {loggedIn && (
           <nav aria-label="フッター">
             <ul className="grid grid-cols-2 gap-x-8 text-sm">
@@ -22,6 +27,7 @@ export function SiteFooter({ loggedIn, stickyBar = false }: { loggedIn: boolean;
                 ["/offers/new", "カードを出す"],
                 ["/slots", "空き枠"],
                 ["/me", "マイページ"],
+                ["/guidelines", "利用規約・安全ガイドライン"],
               ].map(([href, label]) => (
                 <li key={href}>
                   <Link href={href} className="flex min-h-11 items-center text-text-sub hover:text-primary">{label}</Link>

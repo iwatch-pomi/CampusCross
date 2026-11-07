@@ -44,6 +44,13 @@ async function verifyCode(email: string, formData: FormData): Promise<LoginState
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
+  if (error?.code === "user_banned" || error?.message?.includes("banned")) {
+    return {
+      step: "code",
+      email,
+      error: "このアカウントは、利用規約・安全ガイドラインへの違反により永久に利用停止されています",
+    };
+  }
   if (error || !data.user) {
     return { step: "code", email, error: "コードが違うか、有効期限が切れています" };
   }
