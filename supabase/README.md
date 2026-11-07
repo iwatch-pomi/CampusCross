@@ -66,7 +66,14 @@
    他大学を追加するときは、同じ形式で `seeds/<大学>.sql` を作る。
 
 4. **メール認証を設定する**
-   - Authentication → Providers → Email：OTP（6桁のコード）を有効にする。メールのテンプレートには `{{ .Token }}` を入れる
+   - Authentication → Providers → Email：メールでのログインを有効にする
+   - Authentication → Emails → Templates：**「Confirm signup」と「Magic Link」の両方**の本文に `{{ .Token }}`（6桁のコード）を入れる。初めての人には「Confirm signup」、2回目以降の人には「Magic Link」が送られるため、片方だけだとコードが届かない人が出る。例：
+     ```html
+     <h2>Campus-Cross ログインコード</h2>
+     <p>コード: <strong>{{ .Token }}</strong></p>
+     <p>心当たりがない場合は、このメールを無視してください。</p>
+     ```
+   - Authentication → URL Configuration：Site URL に本番のURL（Vercel のドメイン）を入れる
    - Authentication → SMTP Settings：**独自SMTP（Resendなど）を設定する**。標準の送信は上限がかなり低く、本番では足りない
    - 大学のメールで実際に受信できるか（迷惑メールに入らないか）を必ず確認する
 
