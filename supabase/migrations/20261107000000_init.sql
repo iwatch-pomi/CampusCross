@@ -3,7 +3,8 @@
 --   - 学内ドメイン限定の登録
 --   - チケット（トークン）: 初期3枚 / 毎月1枚（残高5枚未満のみ）/ 予約で仮押さえ
 --   - オフィスアワー方式の予約（承認なしで即確定）
---   - 異分野セッションの記録
+--   - 異分野セッションの記録（学部または分野が違えば異分野）
+--   - カードの種類: 専門テーマ / 学部のしくみ
 -- 残高とチケットの移動は private / security definer 関数でのみ行う。
 -- =====================================================================
 
@@ -53,17 +54,30 @@ insert into public.fields (code, label, sort_order) values
   ('other',          'その他',              100);
 
 -- ---------------------------------------------------------------------
+-- 学部マスタ（自大学の学部を運営が登録する。表記ゆれを防ぎ、学部ごとの絞り込みに使う）
+-- 例: insert into public.faculties (name, field_code, sort_order) values ('法学部', 'social_science', 10);
+-- ---------------------------------------------------------------------
+create table public.faculties (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null unique check (char_length(name) between 1 and 40),
+  field_code text not null references public.fields (code),  -- その学部の代表的な分野（プロフィールの初期値に使う）
+  sort_order int  not null default 0
+);
+
+-- ---------------------------------------------------------------------
 -- プロフィール
 -- ---------------------------------------------------------------------
 create table public.profiles (
   id           uuid primary key references auth.users (id) on delete cascade,
   display_name text not null default '' check (char_length(display_name) <= 30),
-  faculty      text check (char_length(faculty) <= 40),      -- 学部（自由入力）
+  faculty_id   uuid references public.faculties (id),         -- 学部
   department   text check (char_length(department) <= 60),   -- 学科・専攻
   field_code   text references public.fields (code),
   grade        text check (grade in ('B1','B2','B3','B4','B5','B6','M1','M2','D1','D2','D3','other')),
   bio          text check (char_length(bio) <= 500),
-  onboarded    boolean generated always as (display_name <> '' and field_code is not null) stored,
+  onboarded    boolean generated always as (
+                 display_name <> '' and faculty_id is not null and field_code is not null
+               ) stored,
   is_admin     boolean not null default false,
   is_suspended boolean not null default false,
   created_at   timestamptz not null default now(),
@@ -116,9 +130,15 @@ create index token_ledger_user_idx on public.token_ledger (user_id, created_at d
 -- ---------------------------------------------------------------------
 -- 募集カード
 -- ---------------------------------------------------------------------
+-- カードの種類
+--   topic         : 専門テーマ（メイン）。「15分でわかる：〇〇」
+--   faculty_guide : 学部のしくみ。ゼミ・研究室の決まり方、卒論の有無、学び方など、中の人しか知らない制度の話
+create type public.offer_kind as enum ('topic', 'faculty_guide');
+
 create table public.offers (
   id           uuid primary key default gen_random_uuid(),
   teacher_id   uuid not null references public.profiles (id) on delete cascade,
+  kind         public.offer_kind not null default 'topic',
   title        text not null check (char_length(title) between 5 and 60),       -- 問い形式
   hook         text not null check (char_length(hook) between 1 and 140),       -- 専門外の人へのひとこと
   description  text check (char_length(description) <= 1000),
@@ -131,7 +151,7 @@ create table public.offers (
   updated_at   timestamptz not null default now()
 );
 
-create index offers_field_idx   on public.offers (field_code) where is_active;
+create index offers_field_idx   on public.offers (kind, field_code) where is_active;
 create index offers_teacher_idx on public.offers (teacher_id);
 create index offers_tags_idx    on public.offers using gin (tags);
 
@@ -173,7 +193,7 @@ create table public.bookings (
   teacher_id     uuid not null references public.profiles (id) on delete cascade,
   status         public.booking_status not null default 'booked',
   message        text check (char_length(message) <= 300),        -- 学ぶ側のひとこと
-  is_cross_field boolean not null,                                  -- 異分野セッションか
+  is_cross_field boolean not null,                                  -- 異分野セッションか（学部または分野が違う）
   thanks_message text check (char_length(thanks_message) <= 300),
   cancelled_by   uuid references public.profiles (id) on delete set null,
   cancel_reason  text check (char_length(cancel_reason) <= 200),
@@ -377,7 +397,7 @@ begin
     raise exception 'このアカウントでは予約できません';
   end if;
   if not v_learner.onboarded then
-    raise exception 'プロフィール（表示名・分野）を登録してから予約してください';
+    raise exception 'プロフィール（表示名・学部・分野）を登録してから予約してください';
   end if;
 
   select * into v_slot from public.slots where id = p_slot_id for update;
@@ -432,7 +452,8 @@ begin
   insert into public.bookings (slot_id, offer_id, learner_id, teacher_id, message, is_cross_field)
   values (
     v_slot.id, v_offer.id, v_uid, v_teacher.id, p_message,
-    v_learner.field_code is distinct from v_teacher.field_code
+    v_learner.faculty_id is distinct from v_teacher.faculty_id
+      or v_learner.field_code is distinct from v_teacher.field_code
   )
   returning id into v_id;
 
@@ -580,6 +601,7 @@ grant  execute on function public.claim_monthly_grant()             to authentic
 --   すべて「ログイン済み（authenticated）」のみ。学外には一切見せない。
 -- =====================================================================
 alter table public.fields          enable row level security;
+alter table public.faculties       enable row level security;
 alter table public.profiles        enable row level security;
 alter table public.profile_private enable row level security;
 alter table public.wallets         enable row level security;
@@ -597,13 +619,17 @@ revoke all on all tables in schema public from anon;
 create policy "fields: 誰でも閲覧" on public.fields
   for select to authenticated using (true);
 
+-- faculties
+create policy "faculties: 誰でも閲覧" on public.faculties
+  for select to authenticated using (true);
+
 -- profiles: 全員が閲覧、本人のみ一部の列を更新
 create policy "profiles: 閲覧" on public.profiles
   for select to authenticated using (true);
 create policy "profiles: 本人が更新" on public.profiles
   for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
 revoke insert, update, delete on public.profiles from authenticated;
-grant update (display_name, faculty, department, field_code, grade, bio) on public.profiles to authenticated;
+grant update (display_name, faculty_id, department, field_code, grade, bio) on public.profiles to authenticated;
 
 -- profile_private: 本人のみ
 create policy "profile_private: 本人が閲覧" on public.profile_private
@@ -690,9 +716,11 @@ select
         / nullif(count(*) filter (where b.status = 'completed'), 0), 1)           as cross_field_pct,
   count(*) filter (where b.status = 'cancelled')                                  as cancelled,
   round(100.0 * count(*) filter (where b.status = 'cancelled') / nullif(count(*), 0), 1) as cancel_pct,
+  count(*) filter (where b.status = 'completed' and o.kind = 'faculty_guide')      as faculty_guide_sessions,
   count(*) filter (where b.status = 'completed' and b.thanks_message is not null) as with_thanks
 from public.bookings b
 join public.slots s on s.id = b.slot_id
+join public.offers o on o.id = b.offer_id
 group by 1
 order by 1;
 
