@@ -8,6 +8,7 @@ import { FormMessage, SubmitButton } from "./form-bits";
 import { Field, INPUT } from "./ui";
 import { GRADES } from "@/lib/constants";
 import { GENDER_OPTIONS } from "@/lib/safety";
+import { ENCOURAGE } from "@/lib/content";
 import type { Faculty, Field as FieldRow, Gender, Profile } from "@/lib/types";
 
 type Props = {
@@ -77,7 +78,7 @@ export function ProfileForm({ profile, contact, faculties, fields, next, submitL
         他の人に見えるのは、ニックネーム・学部・学年・分野・自己紹介だけです。本名・学科・メールアドレス・性別は表示されません。
       </p>
 
-      <Field label="自己紹介" htmlFor="bio" hint="研究していること、興味のある他分野など（500文字まで）。連絡先・SNS・URLは書けません">
+      <Field label="自己紹介" htmlFor="bio" hint={ENCOURAGE.bioHint}>
         <textarea id="bio" name="bio" rows={4} maxLength={500} defaultValue={profile.bio ?? ""} className={INPUT} />
       </Field>
 

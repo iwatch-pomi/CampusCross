@@ -7,6 +7,7 @@ import { Avatar, Badge, ButtonLink, Card, EmptyState, SectionHeading, buttonClas
 import { TestimonialCard } from "@/components/marketing/testimonial-card";
 import { CategoryIcon } from "@/components/category/category-icon";
 import { GRADE_LABEL, KIND_LABEL, LEDGER_LABEL } from "@/lib/constants";
+import { ENCOURAGE } from "@/lib/content";
 import { formatDateTime, formatSlot, hasStarted } from "@/lib/format";
 import { placeLabel } from "@/lib/safety";
 import type { Booking, LedgerEntry, Offer, Slot } from "@/lib/types";
@@ -88,7 +89,7 @@ export default async function MePage() {
 
       {/* 教えた実績 */}
       <section id="teaching" aria-labelledby="teaching-heading" className="scroll-mt-20">
-        <SectionHeading title={<span id="teaching-heading">教えた実績</span>} sub="ガクチカの実績としても使えます" />
+        <SectionHeading title={<span id="teaching-heading">教えた実績</span>} sub={ENCOURAGE.teachingRecord} />
         <dl className="grid grid-cols-3 gap-3">
           {[
             ["教えた回数", taught.length],

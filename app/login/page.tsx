@@ -13,6 +13,7 @@ import { FeaturePoints } from "@/components/marketing/feature-points";
 import { StatNumbers } from "@/components/marketing/stat-numbers";
 import { Steps } from "@/components/marketing/steps";
 import { TestimonialCard } from "@/components/marketing/testimonial-card";
+import { GakuchikaSection } from "@/components/marketing/gakuchika-section";
 import { CategoryCardGrid } from "@/components/category/category-card";
 import { WaveDivider } from "@/components/decor/wave-divider";
 import { DoodleDecorations } from "@/components/decor/doodles";
@@ -58,6 +59,13 @@ export default function LoginPage() {
             {ABOUT.body.map((p) => (
               <p key={p} className="mt-3 text-text-sub">{p}</p>
             ))}
+          </div>
+        </section>
+
+        {/* ガクチカ（寄り添う打ち出し） */}
+        <section id="gakuchika" className="bg-surface pb-section-sm md:pb-section">
+          <div className="mx-auto max-w-5xl px-4">
+            <GakuchikaSection />
           </div>
         </section>
 
@@ -139,7 +147,8 @@ export default function LoginPage() {
           <div className="relative mx-auto max-w-md px-4">
             <p className="text-center text-sm font-bold text-accent">{SIGNUP_CTA.micro}</p>
             <h2 className="mt-1 text-center text-2xl">{SIGNUP_CTA.title}</h2>
-            <p className="mb-6 mt-2 text-center text-sm text-text-sub">{SIGNUP_CTA.note}</p>
+            <p className="mt-2 text-center text-sm">{SIGNUP_CTA.sub}</p>
+            <p className="mb-6 mt-1 text-center text-xs text-text-sub">{SIGNUP_CTA.note}</p>
             <div className="rounded-lg border border-border bg-surface p-6 shadow-card-hover">
               <LoginForm domainHint={domain} />
             </div>

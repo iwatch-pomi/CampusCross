@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Ticket } from "lucide-react";
 import { getCurrentMember } from "@/lib/auth";
-import { TERMS_VERSION } from "@/lib/content";
+import { ENCOURAGE, TERMS_VERSION } from "@/lib/content";
 import { loadContact, loadMasters } from "@/lib/masters";
 import { ProfileForm } from "@/components/profile-form";
 import { Avatar } from "@/components/ui";
@@ -32,6 +32,7 @@ export default async function OnboardingPage() {
               <h1 className="text-xl">プロフィールを登録しましょう</h1>
             </div>
           </div>
+          {!profile.onboarded && <p className="mb-4 text-sm">{ENCOURAGE.onboarding}</p>}
           <p className="mb-6 flex items-center gap-2 rounded-md bg-accent-soft px-3 py-2 text-sm text-accent">
             <Ticket className="size-5 shrink-0" aria-hidden />
             {profile.onboarded ? "利用規約が更新されました。内容を確認して、もう一度同意してください。" : "チケットを3枚お渡ししました。学部と分野は「異分野」の判定に使います。"}
