@@ -84,7 +84,7 @@ update public.profiles set is_admin = true
 
 ## 本番に出す（Vercel）
 
-> **本格公開の前に**：Phase 1 では、ログインコードのメールを専用の Gmail アカウントから送っています。本格的に公開する前に、独自ドメインを取って Resend などの送信サービスに切り替えてください（大学のメールで迷惑メールに入りにくくなります）。Supabase の Authentication → SMTP Settings を差し替えるだけで、アプリ側の変更は不要です。
+> **メールの送信**：ログインコードと通知のメールは、独自ドメイン `campuscross.app`（Cloudflare Registrar で取得）から Resend 経由で送ります。ログインコードは Supabase の Authentication → SMTP Settings（Host `smtp.resend.com`・Port `465`・Username `resend`・Password に Resend の API キー、送信元 `noreply@campuscross.app`）、通知は Vercel の `RESEND_API_KEY`・`NOTIFY_FROM` で設定します。
 
 1. [supabase/README.md](supabase/README.md) の手順で、本番の Supabase を設定する（マイグレーション、初期データ、メールテンプレート、独自SMTP）
 2. Vercel にこのリポジトリをインポートし、`.env.example` の環境変数を設定する
