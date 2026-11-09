@@ -28,7 +28,7 @@ var ORGANIZER = {
   // なぜこのサービスを作ろうと思ったかを1〜2文で
   why: '〇〇（例：同じキャンパスにいても、他学部の人が何を学んでいるかを知る機会がほとんどないと感じたことがきっかけです）',
   // 協力者への条件（謝礼の有無、関わり方など）。決まっていなければ「お話の中でお伝えします」のままでよい
-  terms: '関わり方や条件は、お話の中でお伝えします。',
+  terms: '関わり方や条件は、話の中でお伝えします。',
 };
 
 function createCampusCrossSurvey() {
@@ -39,13 +39,11 @@ function createCampusCrossSurvey() {
   var form = FormApp.create('Campus-Cross 学内アンケート');
 
   form.setDescription(
-    '広島大学の学生どうしで、自分の専門を15〜30分だけ教え合うサービス「Campus-Cross」を準備しています。' +
-    '使いやすい形にするため、約5分のアンケートにご協力ください。\n\n' +
-    'このアンケートは、サービスの設計のためのものです（研究のための調査ではありません）。' +
-    '回答は無記名で、氏名やメールアドレスはお聞きしません。' +
-    '結果はサービスの設計にだけ使い、学外に個別の回答を公開することはありません。\n\n' +
-    '実施者：' + ORGANIZER.affiliation + ' ' + ORGANIZER.name + '（' + ORGANIZER.email + '）\n' +
-    ORGANIZER.why
+    ORGANIZER.affiliation + 'の' + ORGANIZER.name + 'です。' +
+    'いま、広大生どうしで自分の専門を15〜30分だけ教え合える「Campus-Cross」というサービスをつくっています。' +
+    '使いやすい形にしたいので、5分ほど答えてもらえるとうれしいです。\n\n' +
+    '名前やメールアドレスは聞きません。答えはサービスづくりの参考にだけ使い、一人ひとりの答えを外に出すことはありません。' +
+    '（研究のための調査ではありません。問い合わせ：' + ORGANIZER.email + '）'
   );
 
   // ---- 設定：個人情報を集めない ----
@@ -57,17 +55,17 @@ function createCampusCrossSurvey() {
   form.setShowLinkToRespondAgain(false);
   form.setProgressBar(true);
   form.setConfirmationMessage(
-    'ご協力ありがとうございました。いただいた回答は、Campus-Cross を使いやすい形にするためにだけ使います。' +
-    'サービスの開始は、学内の告知でお知らせします。\n\n' +
-    '一緒にサービスをつくってくれる人も募集しています（このアンケートとは別のフォームです）：\n' + recruitUrl + '\n\n' +
-    'お問い合わせ：' + ORGANIZER.email
+    '答えてくれて、ありがとうございました！ いただいた答えは、Campus-Cross をつくる参考にだけ使います。' +
+    '始まるときは学内でお知らせします。\n\n' +
+    '一緒につくってくれる人も募集しているので、気になったらこちらものぞいてみてください' +
+    '（別のフォームなので、このアンケートの答えとは結びつきません）：\n' + recruitUrl
   );
 
   // ---- セクション1 あなたについて ----
-  form.addSectionHeaderItem().setTitle('あなたについて');
+  form.addSectionHeaderItem().setTitle('あなたのこと');
 
   form.addListItem()
-    .setTitle('所属している学部（大学院生は、学部時代に近いもの）を教えてください。')
+    .setTitle('学部を教えてください。大学院生の方は、学部のときにいた学部で答えてください。')
     .setChoiceValues([
       '総合科学部', '文学部', '教育学部', '法学部', '経済学部', '理学部',
       '医学部', '歯学部', '薬学部', '工学部', '生物生産学部', '情報科学部', '答えたくない'
@@ -76,142 +74,144 @@ function createCampusCrossSurvey() {
 
   form.addMultipleChoiceItem()
     .setTitle('学年を教えてください。')
-    .setChoiceValues(['学部1年', '学部2年', '学部3年', '学部4年', '学部5・6年', '修士課程', '博士課程'])
+    .setChoiceValues(['学部1年', '学部2年', '学部3年', '学部4年', '学部5・6年', '修士', '博士'])
     .setRequired(true);
 
-  // ---- セクション2 いまの様子 ----
-  form.addPageBreakItem().setTitle('いまの様子');
+  // ---- セクション2 いまのこと ----
+  form.addPageBreakItem().setTitle('いまのこと');
 
   form.addMultipleChoiceItem()
-    .setTitle('他学部の学生と、学問や研究の話をする機会はどのくらいありますか。')
-    .setChoiceValues(['よくある', 'ときどきある', 'ほとんどない', 'まったくない'])
-    .setRequired(true);
-
-  form.addMultipleChoiceItem()
-    .setTitle('他学部でどんな研究や学びがされているか、知りたいと思うことはありますか。')
-    .setChoiceValues(['よくある', 'ときどきある', 'あまりない', 'まったくない'])
+    .setTitle('他学部の人と、勉強や研究の話をすることはありますか。')
+    .setChoiceValues(['よくある', 'たまにある', 'ほとんどない', 'まったくない'])
     .setRequired(true);
 
   form.addMultipleChoiceItem()
-    .setTitle('就活や進路で使える「ガクチカ」や自己PRのネタについて、いまの気持ちに近いものを選んでください。')
-    .setChoiceValues(['話せることは十分ある', '少しはある', 'あまりない気がしている', 'まだ考えていない／当てはまらない'])
+    .setTitle('他学部でどんなことを学んでいるのか、気になることはありますか。')
+    .setChoiceValues(['よくある', 'たまにある', 'あまりない', 'まったくない'])
+    .setRequired(true);
+
+  form.addMultipleChoiceItem()
+    .setTitle('就活などで話せる「ガクチカ」について、いまの気持ちに近いものはどれですか。')
+    .setChoiceValues(['けっこうある', '少しはある', 'あまりない気がする', 'まだ考えたことがない'])
     .setRequired(true);
 
   // ---- セクション3 サービスへの関心 ----
   form.addPageBreakItem()
-    .setTitle('サービスへの関心')
+    .setTitle('サービスについて')
     .setHelpText(
-      'Campus-Cross は、広島大学の学生どうしで、研究や授業・ゼミで学んでいることを、他学部の人に15〜30分だけ教え合うサービスです。' +
-      '大学のメールで登録し、学食・図書館・学内のカフェ・Zoom のどれかで話します。' +
-      'お金はかからず、「教えると1枚もらえて、教わると1枚使う」チケットで回します。'
+      'Campus-Cross は、広大生どうしで、研究や授業で学んでいることを他学部の人に15〜30分だけ話したり、聞いたりできるサービスです。' +
+      '大学のメールで登録して、学食・図書館・学内のカフェ・Zoom のどこかで話します。' +
+      'お金はかかりません。教えると1枚もらえて、教わると1枚使う「チケット」で回します。'
     );
 
   form.addMultipleChoiceItem()
-    .setTitle('このようなサービスがあったら、使ってみたいと思いますか。')
-    .setChoiceValues(['ぜひ使ってみたい', 'まあ使ってみたい', 'どちらともいえない', 'あまり使いたくない', '使いたくない'])
+    .setTitle('こういうサービスがあったら、使ってみたいですか。')
+    .setChoiceValues(['ぜひ使いたい', 'ちょっと使ってみたい', 'どちらとも言えない', 'あまり使わないと思う', '使わないと思う'])
     .setRequired(true);
 
   // 立場によって次のセクションが変わる（選択肢は分岐先のセクションを作った後で設定する）
   var roleItem = form.addMultipleChoiceItem()
-    .setTitle('どの立場で使ってみたいですか。')
+    .setTitle('使うとしたら、どちらの立場で使いたいですか。')
     .setRequired(true);
 
   // 教える人向け（「教える側」「両方」を選んだ人）
   var teachPage = form.addPageBreakItem().setTitle('教えることについて');
 
   form.addCheckboxItem()
-    .setTitle('教えられそうなことを選んでください。')
+    .setTitle('教えられそうなことはありますか。（いくつでも）')
     .setChoiceValues([
-      '自分の研究の内容',
-      '授業やゼミで学んでいること',
-      '自分の学部のしくみ（ゼミ・研究室の決まり方、卒論など）',
+      '自分の研究のこと',
+      '授業やゼミで習っていること',
+      '自分の学部のしくみ（ゼミや研究室の決まり方、卒論など）',
       'プログラミングやツールの使い方'
     ])
-    .showOtherOption(true);
+    .showOtherOption(true)
+    .setRequired(true);
 
   form.addCheckboxItem()
-    .setTitle('教えてみたい理由に近いものを選んでください。')
+    .setTitle('教えてみたいと思う理由はどれですか。（いくつでも）')
     .setChoiceValues([
-      '誰かの役に立ちたい',
-      '自分の専門を説明する練習になる',
-      '就活で話せる経験（ガクチカ）にしたい',
-      '他分野の人の意見を聞いてみたい',
+      '人の役に立ちたい',
+      '自分の専門を説明する練習になりそう',
+      '就活で話せる経験にしたい',
+      '他の分野の人の意見を聞いてみたい',
       'チケットをためて、自分も教わりたい'
     ])
-    .showOtherOption(true);
+    .showOtherOption(true)
+    .setRequired(true);
 
   // 教わりたい分野（「教わる側」は直接ここへ。「教える側」「両方」は教える質問の後にここへ。任意）
   var learnPage = form.addPageBreakItem().setTitle('教わってみたいこと');
 
   form.addCheckboxItem()
-    .setTitle('教わってみたい分野を選んでください（任意）。')
+    .setTitle('教わってみたい分野はありますか。（いくつでも・任意）')
     .setChoiceValues([
       '理学', '工学', '情報', '生命・農学', '医療・薬学', '人文',
       '社会科学（法・経済・経営）', '教育', '芸術・デザイン', '学際・文理融合',
-      '他学部のしくみ（ゼミ・研究室の決まり方、卒論など）'
+      '他学部のしくみ（ゼミや研究室の決まり方、卒論など）'
     ]);
 
   // ---- 全員に戻る：チケット制・使い方 ----
-  var restPage = form.addPageBreakItem().setTitle('使い方');
+  var restPage = form.addPageBreakItem().setTitle('使い方のこと');
 
   form.addMultipleChoiceItem()
-    .setTitle('「教えると1枚もらえて、教わると1枚使う」お金のかからないチケットの仕組みについて、どう感じますか。')
-    .setChoiceValues(['分かりやすく、使ってみたい', '分かるが、少し面倒そう', 'よく分からない', 'チケットはなくてもよい'])
+    .setTitle('「教えると1枚、教わると1枚」というチケットの仕組みを、どう思いますか。')
+    .setChoiceValues(['分かりやすい、使ってみたい', '分かるけど、ちょっと面倒そう', 'よく分からない', 'チケットはなくていい'])
     .setRequired(true);
 
   form.addMultipleChoiceItem()
-    .setTitle('1回の長さはどのくらいがちょうどよいですか。')
-    .setChoiceValues(['15分', '30分', 'どちらでもよい', 'もっと長い方がよい'])
+    .setTitle('1回の時間はどれくらいがいいですか。')
+    .setChoiceValues(['15分', '30分', 'どちらでもいい', 'もっと長いほうがいい'])
     .setRequired(true);
 
   form.addCheckboxItem()
-    .setTitle('参加しやすい時間帯を選んでください。')
-    .setChoiceValues(['平日の昼休み', '平日の空きコマ', '平日の授業後（17時以降）', '土日', 'オンラインなら夜でもよい'])
+    .setTitle('参加しやすい時間帯はいつですか。（いくつでも）')
+    .setChoiceValues(['平日の昼休み', '平日の空きコマ', '平日の授業のあと（17時より後）', '土日', 'オンラインなら夜でもいい'])
     .setRequired(true);
 
   form.addMultipleChoiceItem()
-    .setTitle('話す形式はどれがよいですか。')
-    .setChoiceValues(['対面（学食・図書館・学内のカフェ）', 'オンライン（Zoom）', 'どちらでもよい'])
+    .setTitle('対面とオンライン、どちらがいいですか。')
+    .setChoiceValues(['対面（学食・図書館・学内のカフェ）', 'オンライン（Zoom）', 'どちらでもいい'])
     .setRequired(true);
 
   // ---- セクション5 安心して使うために ----
   form.addPageBreakItem().setTitle('安心して使うために');
 
   form.addCheckboxItem()
-    .setTitle('初めて会う学生と話すとき、不安に感じることを選んでください。')
+    .setTitle('初めて会う人と話すとき、不安なことはありますか。（いくつでも）')
     .setChoiceValues([
       '相手がどんな人か分からない',
-      '勧誘や、学び以外の目的の人が来ないか',
+      '勧誘など、学び以外が目的の人が来ないか',
       '異性と2人で話すこと',
       '会う場所',
-      '時間が長引いてしまうこと',
+      '時間が長引くこと',
       '専門の話についていけるか',
       '特にない'
     ])
     .setRequired(true);
 
   form.addCheckboxItem()
-    .setTitle('あると安心できるものを選んでください。')
+    .setTitle('どんな仕組みがあれば安心できますか。（いくつでも）')
     .setChoiceValues([
-      '大学のメールでの本人確認（広大生だけが使える）',
-      '同性の相手とだけマッチできる設定',
-      '会う場所が人の多い学内に限られていること',
-      '本名や連絡先を相手に知られないこと',
-      '通報・ブロックできること',
-      '問題を起こした人が利用停止になること'
+      '広大生だけが使える（大学のメールで確認）',
+      '同性の人とだけマッチできる',
+      '会う場所が人の多い学内に決まっている',
+      '本名や連絡先を相手に知られない',
+      '通報やブロックができる',
+      '問題を起こした人が使えなくなる'
     ])
     .showOtherOption(true)
     .setRequired(true);
 
   form.addParagraphTextItem()
-    .setTitle('このサービスに期待することや、あったらうれしい機能を自由に書いてください（任意）。');
+    .setTitle('こんなことができたらいいな、ということがあれば、自由に書いてください。（任意）');
 
   form.addSectionHeaderItem()
-    .setTitle('一緒につくってくれる人を募集しています')
+    .setTitle('一緒につくってくれる人も探しています')
     .setHelpText(
-      '教える人として最初にカードを出してくれる人、試しに使ってくれる人、開発・デザイン・広報・運営を手伝ってくれる人を探しています。' +
-      '興味があれば、送信した後に表示されるリンクから応募してください。' +
-      'このアンケートとは別のフォームなので、ここでの回答とは結びつきません。'
+      '最初に教える人としてカードを出してくれる人、試しに使ってくれる人、開発・デザイン・広報・運営を手伝ってくれる人を探しています。' +
+      '気になったら、送信したあとに出てくるリンクから応募してください。' +
+      '別のフォームなので、このアンケートの答えとは結びつきません。'
     );
 
   // ---- 分岐の設定 ----
@@ -241,24 +241,21 @@ function createCollaboratorForm_() {
   var form = FormApp.create('Campus-Cross 開発・運営メンバー募集');
 
   form.setDescription(
-    'はじめまして。' + ORGANIZER.affiliation + 'の' + ORGANIZER.name + 'です。\n' +
-    ORGANIZER.why + '\n\n' +
-    '広島大学の学生どうしで、自分の専門を15〜30分だけ教え合うサービス「Campus-Cross」を開発しています。' +
-    '主な機能と安全対策（大学メールでの本人確認、同性限定の設定、会う場所を学内の公共スペースに限る、など）はすでにできていて、' +
-    'これから学内で小さく試していく段階です。\n\n' +
-    '一緒につくってくれる人を探しています。少しでも興味があれば、気軽に応募してください。話を聞くだけでも大歓迎です。\n' +
-    ORGANIZER.terms + '\n\n' +
-    'いただいた情報は、こちらからのご連絡にだけ使い、募集が終わったら削除します。\n' +
-    'お問い合わせ：' + ORGANIZER.email
+    'はじめまして。' + ORGANIZER.affiliation + 'の' + ORGANIZER.name + 'です。' + ORGANIZER.why + '\n\n' +
+    '今は、広大生どうしで自分の専門を15〜30分だけ教え合える「Campus-Cross」をつくっています。' +
+    '一通り動くところまではできていて、これから学内で小さく試していくところです。\n\n' +
+    '一緒につくってくれる人を探しています。話を聞くだけでも大歓迎なので、気軽に応募してください。' + ORGANIZER.terms + '\n\n' +
+    '書いてもらった連絡先は、こちらから連絡するときにだけ使い、募集が終わったら消します。\n' +
+    '問い合わせ：' + ORGANIZER.email
   );
 
   form.setCollectEmail(false);   // 連絡先は下の質問で聞く（Google アカウントのメールは集めない）
   try { form.setEmailCollectionType(FormApp.EmailCollectionType.DO_NOT_COLLECT); } catch (e) {}
   form.setAllowResponseEdits(false);
   form.setShowLinkToRespondAgain(false);
-  form.setConfirmationMessage('応募ありがとうございます！ 1週間以内を目安に、大学のメールにご連絡します。');
+  form.setConfirmationMessage('応募ありがとうございます！ 1週間以内を目安に、大学のメールに連絡します。');
 
-  form.addTextItem().setTitle('お名前（ニックネームでも大丈夫です）').setRequired(true);
+  form.addTextItem().setTitle('名前（ニックネームでも大丈夫です）').setRequired(true);
 
   form.addTextItem()
     .setTitle('連絡先（大学のメールアドレス）')
@@ -284,9 +281,9 @@ function createCollaboratorForm_() {
     .setRequired(true);
 
   form.addCheckboxItem()
-    .setTitle('協力してみたいこと（いくつでも）')
+    .setTitle('手伝ってみたいこと（いくつでも）')
     .setChoiceValues([
-      '教える人として、最初のカードを出す',
+      '最初に教える人として、カードを出す',
       '試しに使ってみて、感想を伝える',
       '開発（プログラミング）',
       'デザイン（画面・イラスト）',
@@ -302,7 +299,7 @@ function createCollaboratorForm_() {
     .setChoiceValues(['週1〜2時間', '週3〜5時間', 'それ以上', '単発・スポットなら'])
     .setRequired(true);
 
-  form.addParagraphTextItem().setTitle('できること・経験（あれば。例：使える言語やツール、サークルでの広報など）');
+  form.addParagraphTextItem().setTitle('できることや経験があれば（例：使える言語やツール、サークルでの広報など）');
   form.addParagraphTextItem().setTitle('ひとこと（任意）');
 
   var sheet = SpreadsheetApp.create('Campus-Cross 開発・運営メンバー募集（回答）');
