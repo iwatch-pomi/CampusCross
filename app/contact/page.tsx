@@ -47,6 +47,7 @@ export default async function ContactPage({ searchParams }: PageProps<"/contact"
           <p className="mt-2 text-sm text-text-sub">
             使い方・不具合・安全のこと・要望など、運営に直接届きます。学生が運営しているため、返信に数日かかることがあります。
           </p>
+          <p className="mt-2 text-sm text-text-sub">送った内容と返信は、あなたと運営だけが見られます。ほかの利用者には公開されません。</p>
           {!loggedIn && (
             <p className="mt-2 text-sm text-text-sub">
               ログインしている場合は、送った内容と返信をこのページで確認できます。
