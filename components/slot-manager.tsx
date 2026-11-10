@@ -5,7 +5,7 @@ import { WeeklySchedule, type WeeklyEntry } from "./weekly-schedule";
 import { WeeklyHoursForm } from "./weekly-hours-form";
 import { SlotForm } from "./slot-form";
 import { Card } from "./ui";
-import { addDaysKey, daysAgoIso, formatTimeRange, hoursFromNowIso, jstDateKey, mondayIndex, todayJst } from "@/lib/format";
+import { addDaysKey, daysAgoIso, formatTimeRange, hoursFromNowIso, jstDateKey, sundayIndex, todayJst } from "@/lib/format";
 import { placesLabel, slotModes } from "@/lib/safety";
 import { SlotCalendar, type CalendarDay, type CalendarSlot } from "./slot-calendar";
 import type { Slot } from "@/lib/types";
@@ -39,11 +39,11 @@ export async function SlotManager({ supabase, teacherId, stacked = false }: { su
   const slots = (slotRows ?? []) as Slot[];
   const bookingBySlot = new Map((bookings ?? []).map((b) => [b.slot_id as string, b.id as string]));
 
-  // カレンダー：今週の月曜から、1ヶ月後の週の日曜まで（範囲は今日〜30日後）
+  // カレンダー：今週の日曜から、1ヶ月後の週の土曜まで（範囲は今日〜30日後）
   const today = todayJst();
   const last = addDaysKey(today, 30);
-  const first = addDaysKey(today, -mondayIndex(today));
-  const end = addDaysKey(last, 6 - mondayIndex(last));
+  const first = addDaysKey(today, -sundayIndex(today));
+  const end = addDaysKey(last, 6 - sundayIndex(last));
   const byDay = new Map<string, CalendarSlot[]>();
   for (const sl of slots) {
     const key = jstDateKey(sl.start_at);

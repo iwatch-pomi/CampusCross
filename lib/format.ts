@@ -77,6 +77,12 @@ export function addDaysKey(key: string, days: number): string {
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
+/** "YYYY-MM-DD" の曜日（日曜 = 0 … 土曜 = 6） */
+export function sundayIndex(key: string): number {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
 /** "YYYY-MM-DD" の曜日（月曜 = 0 … 日曜 = 6） */
 export function mondayIndex(key: string): number {
   const [y, m, d] = key.split("-").map(Number);

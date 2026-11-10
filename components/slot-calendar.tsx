@@ -6,7 +6,8 @@ import { CalendarClock, CalendarOff, MapPin, Repeat, Video } from "lucide-react"
 import { cancelDaySlots, cancelSlot } from "@/app/(app)/slots/actions";
 import { SubmitButton } from "./form-bits";
 import { Badge, EmptyState } from "./ui";
-import { WEEKDAYS } from "@/lib/format";
+/** カレンダーは日曜はじまり */
+const CALENDAR_WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
 export type CalendarSlot = {
   id: string;
@@ -29,7 +30,7 @@ export type CalendarDay = {
 };
 
 /**
- * これからの枠（1ヶ月先まで）を、月曜はじまりのカレンダーで見せる。
+ * これからの枠（1ヶ月先まで）を、日曜はじまりのカレンダーで見せる。
  * 日付を押すと、その日の枠が下に出る。
  */
 export function SlotCalendar({ days, initialKey }: { days: CalendarDay[]; initialKey: string }) {
@@ -41,8 +42,8 @@ export function SlotCalendar({ days, initialKey }: { days: CalendarDay[]; initia
     <div className="space-y-4">
       <div className="rounded-lg border border-border bg-surface p-2 shadow-card sm:p-3">
         <div className="grid grid-cols-7 text-center text-xs font-bold text-text-sub">
-          {WEEKDAYS.map((w, i) => (
-            <span key={w} className={`py-1 ${i >= 5 ? "text-accent" : ""}`}>
+          {CALENDAR_WEEKDAYS.map((w, i) => (
+            <span key={w} className={`py-1 ${i === 0 || i === 6 ? "text-accent" : ""}`}>
               {w}
             </span>
           ))}
