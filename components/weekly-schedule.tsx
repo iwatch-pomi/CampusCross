@@ -5,8 +5,9 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { createWeeklyHours, deleteWeeklyHour, updateWeeklyHour } from "@/app/(app)/slots/actions";
 import { FormMessage, SubmitButton } from "./form-bits";
 import { PlaceFields } from "./place-fields";
-import { Field, INPUT } from "./ui";
 import { timeRange, WEEKDAYS } from "@/lib/format";
+import { slotCount } from "@/lib/periods";
+import { TimeRangeFields } from "./time-range-fields";
 import { placesLabel } from "@/lib/safety";
 import type { ActionState, MeetingPlace } from "@/lib/types";
 
@@ -14,6 +15,8 @@ export type WeeklyEntry = {
   id: string;
   weekday: number;
   start_time: string;
+  /** 時間帯の終わり。空なら start_time からの1枠だけ */
+  end_time: string | null;
   minutes: number;
   places: MeetingPlace[];
   place_note: string | null;
@@ -50,7 +53,7 @@ export function WeeklySchedule({ entries }: { entries: WeeklyEntry[] }) {
                   ) : (
                     <div key={e.id} className="flex items-center justify-between gap-2 rounded-md bg-bg-section px-3 py-2 text-sm">
                       <span className="min-w-0">
-                        <span className="font-bold">{timeRange(e.start_time, e.minutes)}</span>
+                        <span className="font-bold">{entryLabel(e)}</span>
                         <span className="block truncate text-xs text-text-sub">{placesLabel(e)}</span>
                       </span>
                       <span className="flex shrink-0 items-center">
@@ -111,25 +114,12 @@ function EntryForm({ weekday, entry, onDone }: { weekday: number; entry?: Weekly
         {WEEKDAYS[weekday - 1]}曜の時間を{entry ? "変更" : "追加"}
       </p>
       {entry ? <input type="hidden" name="id" value={entry.id} /> : <input type="hidden" name="weekday" value={weekday} />}
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="開始時刻" htmlFor={`${prefix}time`} required>
-          <input
-            id={`${prefix}time`}
-            name="time"
-            type="time"
-            required
-            step={300}
-            defaultValue={entry?.start_time.slice(0, 5) ?? "12:20"}
-            className={INPUT}
-          />
-        </Field>
-        <Field label="長さ" htmlFor={`${prefix}minutes`}>
-          <select id={`${prefix}minutes`} name="minutes" defaultValue={String(entry?.minutes ?? 15)} className={INPUT}>
-            <option value="15">15分</option>
-            <option value="30">30分</option>
-          </select>
-        </Field>
-      </div>
+      <TimeRangeFields
+        idPrefix={prefix}
+        defaultStart={entry?.start_time.slice(0, 5)}
+        defaultEnd={entry ? (entry.end_time?.slice(0, 5) ?? endOf(entry.start_time, entry.minutes)) : undefined}
+        defaultMinutes={entry?.minutes}
+      />
       <PlaceFields places={places} onChange={setPlaces} idPrefix={prefix} defaultNote={entry?.place_note} defaultUrl={entry?.meeting_url} />
       {entry && <p className="text-xs text-text-sub">変更すると、先の空き枠が新しい内容で作り直されます。予約が入っている枠と、休みにした日はそのままです。</p>}
       <FormMessage state={state} />
@@ -141,4 +131,20 @@ function EntryForm({ weekday, entry, onDone }: { weekday: number; entry?: Weekly
       </div>
     </form>
   );
+}
+
+/** "12:20:00" + 15分 → "12:35" */
+function endOf(start: string, minutes: number): string {
+  const [h, m] = start.split(":").map(Number);
+  const t = h * 60 + m + minutes;
+  return `${String(Math.floor(t / 60) % 24).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+}
+
+/** 例：「10:30〜12:50（15分ずつ・9枠）」、1枠だけなら「12:20〜12:35」 */
+function entryLabel(e: WeeklyEntry): string {
+  if (!e.end_time) return timeRange(e.start_time, e.minutes);
+  const start = e.start_time.slice(0, 5);
+  const end = e.end_time.slice(0, 5);
+  const n = slotCount(start, end, e.minutes);
+  return n <= 1 ? `${start}〜${end}` : `${start}〜${end}（${e.minutes}分ずつ・${n}枠）`;
 }

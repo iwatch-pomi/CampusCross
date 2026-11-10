@@ -28,7 +28,7 @@ export async function SlotManager({ supabase, teacherId, stacked = false }: { su
     supabase.from("bookings").select("id, slot_id").eq("teacher_id", teacherId).eq("status", "booked"),
     supabase
       .from("weekly_hours")
-      .select("id, weekday, start_time, minutes, places, place_note, secret:weekly_hour_secrets(meeting_url)")
+      .select("id, weekday, start_time, end_time, minutes, places, place_note, secret:weekly_hour_secrets(meeting_url)")
       .eq("teacher_id", teacherId)
       .order("weekday")
       .order("start_time"),

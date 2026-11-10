@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { friendlyDbError, requireOnboarded } from "@/lib/auth";
 import { jstToIso } from "@/lib/format";
 import { CONTACT_INFO_ERROR, hasContactInfo, PLACE_ORDER } from "@/lib/safety";
+import { slotCount } from "@/lib/periods";
 import type { ActionState, MeetingPlace } from "@/lib/types";
 
 const ZOOM_URL = /^https:\/\/([a-z0-9-]+\.)*zoom\.us\/\S*$/i;
@@ -83,6 +84,7 @@ export async function cancelSlot(formData: FormData): Promise<void> {
 /** 毎週のオフィスアワーの入力（時刻・長さ・場所・目印・Zoom）を読み取って確かめる */
 function parseWeeklyFields(formData: FormData) {
   const time = String(formData.get("time") ?? "");
+  const endTime = String(formData.get("end_time") ?? "");
   const minutes = formData.get("minutes") === "30" ? 30 : 15;
   const places = PLACE_ORDER.filter((p) => formData.getAll("place").includes(p)) as MeetingPlace[];
   const placeNote = String(formData.get("place_note") ?? "").trim() || null;
@@ -92,13 +94,15 @@ function parseWeeklyFields(formData: FormData) {
 
   let error: string | null = null;
   if (!/^\d{2}:\d{2}$/.test(time)) error = "開始時刻を入力してください";
+  else if (!/^\d{2}:\d{2}$/.test(endTime)) error = "終了時刻を入力してください";
+  else if (slotCount(time, endTime, minutes) < 1) error = `終了は、開始より${minutes}分以上あとにしてください`;
   else if (places.length === 0) error = "場所を1つ以上選んでください";
   else if (hasInPerson && placeNote && placeNote.length > 40) error = "目印は40文字以内にしてください";
   else if (hasInPerson && placeNote && CLOSED_ROOM.test(placeNote)) error = "目印に個室・研究室・自宅などは書けません（公共スペース内の目印だけにしてください）";
   else if (hasInPerson && hasContactInfo(placeNote)) error = CONTACT_INFO_ERROR;
   else if (hasZoom && !ZOOM_URL.test(meetingUrl)) error = "ZoomのURL（https://〜zoom.us/〜）を入力してください。Zoom を選んで予約した人にだけ表示されます";
 
-  return { error, time, minutes, places, placeNote: hasInPerson ? placeNote : null, meetingUrl, hasZoom };
+  return { error, time, endTime, minutes, places, placeNote: hasInPerson ? placeNote : null, meetingUrl, hasZoom };
 }
 
 export async function createWeeklyHours(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -106,7 +110,7 @@ export async function createWeeklyHours(_prev: ActionState, formData: FormData):
 
   const weekdays = [...new Set(formData.getAll("weekday").map(Number))].filter((d) => Number.isInteger(d) && d >= 1 && d <= 7);
   if (weekdays.length === 0) return { error: "曜日を1つ以上選んでください" };
-  const { error: invalid, time, minutes, places, placeNote, meetingUrl, hasZoom } = parseWeeklyFields(formData);
+  const { error: invalid, time, endTime, minutes, places, placeNote, meetingUrl, hasZoom } = parseWeeklyFields(formData);
   if (invalid) return { error: invalid };
 
   const { data: created, error } = await supabase
@@ -116,6 +120,7 @@ export async function createWeeklyHours(_prev: ActionState, formData: FormData):
         teacher_id: profile.id,
         weekday,
         start_time: time,
+        end_time: endTime,
         minutes,
         places,
         place_note: placeNote,
@@ -124,6 +129,7 @@ export async function createWeeklyHours(_prev: ActionState, formData: FormData):
     .select("id");
   if (error || !created) {
     if (error?.code === "23505") return { error: "同じ曜日・同じ開始時刻の登録がすでにあります" };
+    if (error?.message.includes("weekly_hours_range_check")) return { error: `終了は、開始より${minutes}分以上あとにしてください` };
     return { error: friendlyDbError(error, "登録できませんでした") };
   }
 
@@ -157,12 +163,12 @@ export async function deleteWeeklyHour(formData: FormData): Promise<void> {
 export async function updateWeeklyHour(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const { supabase, profile } = await requireOnboarded();
   const id = String(formData.get("id") ?? "");
-  const { error: invalid, time, minutes, places, placeNote, meetingUrl, hasZoom } = parseWeeklyFields(formData);
+  const { error: invalid, time, endTime, minutes, places, placeNote, meetingUrl, hasZoom } = parseWeeklyFields(formData);
   if (invalid) return { error: invalid };
 
   const { error, count } = await supabase
     .from("weekly_hours")
-    .update({ start_time: time, minutes, places, place_note: placeNote }, { count: "exact" })
+    .update({ start_time: time, end_time: endTime, minutes, places, place_note: placeNote }, { count: "exact" })
     .eq("id", id)
     .eq("teacher_id", profile.id);
   if (error) {

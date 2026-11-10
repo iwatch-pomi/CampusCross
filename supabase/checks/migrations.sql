@@ -68,14 +68,17 @@ from (values
       to_regprocedure('public.my_profile()') is not null
       and to_regprocedure('public.admin_profiles(uuid[])') is not null),
 
-  (11, '（自動）pg_cron のジョブ：campus-cross-auto-complete', '終わった予約の自動完了（毎時）',
+  (11, 'supabase/migrations/20261116000000_weekly_ranges.sql', '毎週のオフィスアワーを時間帯で登録（15分・30分ずつに分ける）',
+      pg_temp.cc_has_column('weekly_hours', 'end_time')),
+
+  (12, '（自動）pg_cron のジョブ：campus-cross-auto-complete', '終わった予約の自動完了（毎時）',
       pg_temp.cc_has_cron_job('campus-cross-auto-complete')),
 
-  (12, '（自動）pg_cron のジョブ：campus-cross-weekly-slots', '毎週の枠を先へ延ばす（毎日）',
+  (13, '（自動）pg_cron のジョブ：campus-cross-weekly-slots', '毎週の枠を先へ延ばす（毎日）',
       pg_temp.cc_has_cron_job('campus-cross-weekly-slots'))
 ) as t(順番, ファイル, 内容, ok)
 order by 順番;
 
--- 11・12 が ❌ のとき：Database → Extensions で pg_cron を有効にしてから、次の2行を実行する
+-- 12・13 が ❌ のとき：Database → Extensions で pg_cron を有効にしてから、次の2行を実行する
 --   select cron.schedule('campus-cross-auto-complete', '7 * * * *', 'select private.auto_complete_bookings()');
 --   select cron.schedule('campus-cross-weekly-slots', '17 15 * * *', 'select private.generate_weekly_slots()');

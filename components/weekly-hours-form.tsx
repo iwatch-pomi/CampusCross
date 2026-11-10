@@ -4,7 +4,8 @@ import { useActionState, useState } from "react";
 import { createWeeklyHours } from "@/app/(app)/slots/actions";
 import { FormMessage, SubmitButton } from "./form-bits";
 import { PlaceFields } from "./place-fields";
-import { CHOICE, Field, INPUT } from "./ui";
+import { CHOICE } from "./ui";
+import { TimeRangeFields } from "./time-range-fields";
 import { WEEKDAYS } from "@/lib/format";
 import type { MeetingPlace } from "@/lib/types";
 
@@ -32,17 +33,7 @@ export function WeeklyHoursForm() {
           ))}
         </div>
       </fieldset>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="開始時刻" htmlFor="w-time" required>
-          <input id="w-time" name="time" type="time" required step={300} defaultValue="12:20" className={INPUT} />
-        </Field>
-        <Field label="長さ" htmlFor="w-minutes" hint="1回は最長30分です">
-          <select id="w-minutes" name="minutes" defaultValue="15" className={INPUT}>
-            <option value="15">15分</option>
-            <option value="30">30分</option>
-          </select>
-        </Field>
-      </div>
+      <TimeRangeFields idPrefix="w-" />
 
       <PlaceFields places={places} onChange={setPlaces} idPrefix="w-" />
 
