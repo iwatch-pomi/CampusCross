@@ -25,6 +25,7 @@ export type Profile = {
   is_official: boolean;
   is_suspended: boolean;
   moderation_status: ModerationStatus;
+  moderated_at: string | null;
   created_at: string;
 };
 

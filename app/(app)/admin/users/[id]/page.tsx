@@ -14,15 +14,19 @@ import type { Profile } from "@/lib/types";
 
 export const metadata: Metadata = { title: "ユーザーの確認" };
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const FLAG_LABEL = Object.fromEntries(REVIEW_FLAGS.map((f) => [f.code, f.label]));
 
 export default async function AdminUserPage({ params }: PageProps<"/admin/users/[id]">) {
   const { id } = await params;
   const { supabase } = await requireAdmin();
+  // URL の id は、そのまま問い合わせの条件に入れるので UUID の形だけを受け付ける
+  if (!UUID.test(id)) notFound();
 
   const [{ data: user }, { data: priv }, { data: reportRows }, { data: reviews }, { data: referrals }, { data: actions }, { count: bookingCount }, { facultyName }] =
     await Promise.all([
-      supabase.from("profiles").select("*").eq("id", id).maybeSingle<Profile>(),
+      supabase.rpc("admin_profiles", { p_ids: [id] }).maybeSingle<Profile>(),
       supabase.from("profile_private").select("university_email").eq("user_id", id).maybeSingle(),
       supabase.from("reports").select(REPORT_SELECT).eq("target_user_id", id).order("created_at", { ascending: false }),
       supabase

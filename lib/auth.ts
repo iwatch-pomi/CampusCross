@@ -13,11 +13,8 @@ export const getCurrentMember = cache(async () => {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single<Profile>();
+  // 停止の状態などは本人と運営だけが読める列なので、本人用の関数で読む
+  const { data: profile } = await supabase.rpc("my_profile").maybeSingle<Profile>();
   if (!profile) redirect("/login");
 
   return { supabase, user, profile };

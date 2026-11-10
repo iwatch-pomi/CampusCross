@@ -35,8 +35,10 @@ export type ReportRow = {
   resolution: string | null;
   created_at: string;
   reporter: { id: string; display_name: string } | null;
-  target: { id: string; display_name: string; moderation_status: ModerationStatus } | null;
+  target: { id: string; display_name: string } | null;
+  /** 対象の人の状態（admin_profiles で別に読む） */
+  targetStatus?: ModerationStatus;
 };
 
 export const REPORT_SELECT =
-  "id, reason, detail, status, source, booking_id, resolution, created_at, reporter:profiles!reports_reporter_id_fkey(id, display_name), target:profiles!reports_target_user_id_fkey(id, display_name, moderation_status)";
+  "id, reason, detail, status, source, booking_id, resolution, created_at, reporter:profiles!reports_reporter_id_fkey(id, display_name), target:profiles!reports_target_user_id_fkey(id, display_name)";

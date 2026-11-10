@@ -8,22 +8,22 @@ import { daysAgoIso, formatDateTime } from "@/lib/format";
 import { INQUIRY_CATEGORY_LABEL, type Inquiry } from "@/lib/inquiry";
 import { InquiryReplyForm } from "@/components/admin-forms";
 import { Badge, Card, EmptyState, OfficialBadge, PageTitle } from "@/components/ui";
-import type { ModerationStatus } from "@/lib/types";
+import type { Profile } from "@/lib/types";
 
 export const metadata: Metadata = { title: "運営" };
 
 export default async function AdminPage() {
   const { supabase } = await requireAdmin();
 
-  const [{ data: reportRows }, { data: held }, { data: actions }, { data: admins }, { data: inquiryRows }] = await Promise.all([
+  // 停止・凍結の状態と運営の権限は、運営用の関数（admin_profiles）でだけ読める
+  const [{ data: reportRows }, { data: special }, { data: actions }, { data: inquiryRows }] = await Promise.all([
     supabase.from("reports").select(REPORT_SELECT).in("status", ["open", "reviewing"]).order("created_at", { ascending: false }).limit(100),
-    supabase.from("profiles").select("id, display_name, moderation_status, moderated_at").neq("moderation_status", "active").order("moderated_at", { ascending: false }).limit(50),
+    supabase.rpc("admin_profiles"),
     supabase
       .from("moderation_actions")
       .select("id, action, note, created_at, target:profiles!moderation_actions_target_id_fkey(id, display_name)")
       .order("created_at", { ascending: false })
       .limit(20),
-    supabase.from("profiles").select("id, display_name, is_official").eq("is_admin", true).order("created_at"),
     supabase
       .from("inquiries")
       .select("id, user_id, category, body, reply_email, status, reply, replied_at, created_at, sender:profiles!inquiries_user_id_fkey(id, display_name)")
@@ -34,7 +34,16 @@ export default async function AdminPage() {
   ]);
   const inquiries = (inquiryRows ?? []) as unknown as (Inquiry & { sender: { id: string; display_name: string } | null })[];
   const openInquiries = inquiries.filter((q) => q.status === "open").length;
+  const people = (special ?? []) as Profile[];
+  const held = people
+    .filter((p) => p.moderation_status !== "active")
+    .sort((a, b) => (b.moderated_at ?? "").localeCompare(a.moderated_at ?? ""));
+  const admins = people.filter((p) => p.is_admin).sort((a, b) => a.created_at.localeCompare(b.created_at));
   const reports = (reportRows ?? []) as unknown as ReportRow[];
+  const targetIds = [...new Set(reports.map((r) => r.target?.id).filter((id): id is string => !!id))];
+  const { data: targets } = targetIds.length ? await supabase.rpc("admin_profiles", { p_ids: targetIds }) : { data: [] };
+  const statusOf = new Map(((targets ?? []) as Profile[]).map((p) => [p.id, p.moderation_status]));
+  for (const r of reports) if (r.target) r.targetStatus = statusOf.get(r.target.id);
 
   return (
     <div className="space-y-10">
@@ -61,7 +70,7 @@ export default async function AdminPage() {
                   <p className="text-sm">
                     <span className="text-text-sub">対象：</span>
                     <span className="font-bold">{r.target?.display_name}</span>
-                    {r.target && <span className="ml-2"><Badge tone={STATUS_TONE[r.target.moderation_status]}>{STATUS_LABEL[r.target.moderation_status]}</Badge></span>}
+                    {r.targetStatus && <span className="ml-2"><Badge tone={STATUS_TONE[r.targetStatus]}>{STATUS_LABEL[r.targetStatus]}</Badge></span>}
                     <span className="ml-3 text-text-sub">通報者：{r.reporter?.display_name}</span>
                   </p>
                   {r.detail && <p className="whitespace-pre-wrap rounded-md bg-bg-section p-3 text-sm">{r.detail}</p>}
@@ -117,11 +126,11 @@ export default async function AdminPage() {
           <ShieldAlert className="size-5 text-warn" aria-hidden />
           停止中・凍結中のユーザー
         </h2>
-        {(held ?? []).length === 0 ? (
+        {held.length === 0 ? (
           <EmptyState title="いません" />
         ) : (
           <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
-            {(held as { id: string; display_name: string; moderation_status: ModerationStatus; moderated_at: string | null }[]).map((u) => (
+            {held.map((u) => (
               <li key={u.id}>
                 <Link href={`/admin/users/${u.id}`} className="flex min-h-14 items-center justify-between gap-3 px-4 hover:bg-bg-section">
                   <span className="font-bold">{u.display_name}</span>
@@ -143,7 +152,7 @@ export default async function AdminPage() {
         </h2>
         <p className="mb-3 text-sm text-text-sub">名前を押すと、バッジを付けたり外したりできます。</p>
         <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
-          {(admins as { id: string; display_name: string; is_official: boolean }[] | null)?.map((u) => (
+          {admins.map((u) => (
             <li key={u.id}>
               <Link href={`/admin/users/${u.id}`} className="flex min-h-14 items-center justify-between gap-3 px-4 hover:bg-bg-section">
                 <span className="font-bold">{u.display_name || "（未登録）"}</span>

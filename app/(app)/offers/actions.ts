@@ -94,7 +94,7 @@ export async function bookSlot(_prev: ActionState, formData: FormData): Promise<
     p_message: message,
     p_place: place,
   });
-  if (error || !bookingId) return { error: error?.message ?? "予約できませんでした" };
+  if (error || !bookingId) return { error: friendlyDbError(error, "予約できませんでした") };
 
   const [{ data: offer }, { data: slot }, { data: booked }] = await Promise.all([
     supabase.from("offers").select("title, teacher_id").eq("id", offerId).single(),

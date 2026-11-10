@@ -68,6 +68,12 @@ export async function saveProfile(_prev: ActionState, formData: FormData): Promi
   }
 
   revalidatePath("/", "layout");
-  const next = String(formData.get("next") ?? "/");
-  redirect(next.startsWith("/") ? next : "/");
+  redirect(safeNextPath(formData.get("next")));
+}
+
+/** サイト内のパスだけを許す（"//example.com" や "/\\example.com" のような外部への転送を防ぐ） */
+function safeNextPath(value: FormDataEntryValue | null): string {
+  const next = String(value ?? "/");
+  // 先頭が "/" 1つで、URL に普通に使う文字だけ（タブや改行はブラウザが消して "//" になり得るので許さない）
+  return /^\/(?!\/)[A-Za-z0-9\-._~/?=&%]*$/.test(next) ? next : "/";
 }
