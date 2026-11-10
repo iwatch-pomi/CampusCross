@@ -205,3 +205,21 @@ export async function updateWeeklyHour(_prev: ActionState, formData: FormData): 
   revalidatePath("/", "layout");
   return { ok: true, message: "変更しました" };
 }
+
+/** その日の、予約の入っていない先の枠をすべて取り消す（毎週の枠なら、その日は休みとして作り直さない） */
+export async function cancelDaySlots(formData: FormData): Promise<void> {
+  const { supabase, profile } = await requireOnboarded();
+  const date = String(formData.get("date") ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+  const from = jstToIso(date, "00:00");
+  const to = new Date(new Date(from).getTime() + 24 * 60 * 60 * 1000).toISOString();
+  const now = new Date().toISOString();
+  await supabase
+    .from("slots")
+    .update({ status: "cancelled" })
+    .eq("teacher_id", profile.id)
+    .eq("status", "open")
+    .gte("start_at", from > now ? from : now)
+    .lt("start_at", to);
+  revalidatePath("/", "layout");
+}

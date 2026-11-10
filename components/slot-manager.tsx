@@ -1,14 +1,13 @@
 import Link from "next/link";
-import { CalendarClock, CopyPlus, MapPin, Repeat, Video } from "lucide-react";
+import { CopyPlus, Repeat } from "lucide-react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { cancelSlot } from "@/app/(app)/slots/actions";
 import { WeeklySchedule, type WeeklyEntry } from "./weekly-schedule";
 import { WeeklyHoursForm } from "./weekly-hours-form";
 import { SlotForm } from "./slot-form";
-import { SubmitButton } from "./form-bits";
-import { Badge, Card, EmptyState } from "./ui";
-import { daysAgoIso, formatSlot, todayJst } from "@/lib/format";
+import { Card } from "./ui";
+import { addDaysKey, daysAgoIso, formatTimeRange, hoursFromNowIso, jstDateKey, mondayIndex, todayJst } from "@/lib/format";
 import { placesLabel, slotModes } from "@/lib/safety";
+import { SlotCalendar, type CalendarDay, type CalendarSlot } from "./slot-calendar";
 import type { Slot } from "@/lib/types";
 
 /**
@@ -23,6 +22,7 @@ export async function SlotManager({ supabase, teacherId, stacked = false }: { su
       .eq("teacher_id", teacherId)
       .neq("status", "cancelled")
       .gt("end_at", daysAgoIso(0))
+      .lt("start_at", hoursFromNowIso(24 * 31))
       .order("start_at"),
     supabase.from("offers").select("id", { count: "exact", head: true }).eq("teacher_id", teacherId).eq("is_active", true),
     supabase.from("bookings").select("id, slot_id").eq("teacher_id", teacherId).eq("status", "booked"),
@@ -39,6 +39,36 @@ export async function SlotManager({ supabase, teacherId, stacked = false }: { su
   const slots = (slotRows ?? []) as Slot[];
   const bookingBySlot = new Map((bookings ?? []).map((b) => [b.slot_id as string, b.id as string]));
 
+  // カレンダー：今週の月曜から、1ヶ月後の週の日曜まで（範囲は今日〜30日後）
+  const today = todayJst();
+  const last = addDaysKey(today, 30);
+  const first = addDaysKey(today, -mondayIndex(today));
+  const end = addDaysKey(last, 6 - mondayIndex(last));
+  const byDay = new Map<string, CalendarSlot[]>();
+  for (const sl of slots) {
+    const key = jstDateKey(sl.start_at);
+    const { inPerson } = slotModes(sl.places);
+    byDay.set(key, [
+      ...(byDay.get(key) ?? []),
+      {
+        id: sl.id,
+        time: formatTimeRange(sl.start_at, sl.end_at),
+        places: placesLabel(sl),
+        inPerson,
+        booked: sl.status === "booked",
+        bookingId: bookingBySlot.get(sl.id) ?? null,
+        weekly: !!sl.weekly_hour_id,
+      },
+    ]);
+  }
+  const days: CalendarDay[] = [];
+  for (let key = first; key <= end; key = addDaysKey(key, 1)) {
+    const [, m, d] = key.split("-").map(Number);
+    days.push({ key, month: m, day: d, inRange: key >= today && key <= last, isToday: key === today, slots: byDay.get(key) ?? [] });
+  }
+  // 最初に開く日：今日以降で、枠がある最初の日（なければ今日）
+  const initialKey = days.find((d) => d.inRange && d.slots.length > 0)?.key ?? today;
+
   return (
     <div className="space-y-6">
       {(offerCount ?? 0) === 0 && (
@@ -53,7 +83,7 @@ export async function SlotManager({ supabase, teacherId, stacked = false }: { su
           毎週のオフィスアワー（月〜日）
         </h3>
         <p className="text-sm text-text-sub">
-          曜日ごとに、話せる時間を登録できます（授業のない時間など。1日にいくつでも）。登録すると4週間先までの空き枠が自動でできて、毎日先の週が足されます。休む日は、下の「これからの枠」でその日だけ取り消してください。
+          曜日ごとに、話せる時間を登録できます（授業のない時間など。1日にいくつでも）。登録すると4週間先までの空き枠が自動でできて、毎日先の週が足されます。休む日は、下の「これからの枠」のカレンダーで、その日の枠を取り消してください。
         </p>
         <Card className="min-w-0 py-2">
           <WeeklySchedule entries={weekly} />
@@ -77,46 +107,9 @@ export async function SlotManager({ supabase, teacherId, stacked = false }: { su
         </Card>
 
         <section aria-labelledby="slots-heading" className="min-w-0">
-          <h3 id="slots-heading" className="mb-3 text-lg">これからの枠</h3>
-          {slots.length === 0 ? (
-            <EmptyState title="まだ枠がありません" icon={<CalendarClock className="size-7" />}>
-              昼休みや空きコマなど、15分だけ話せる時間を出してみましょう。
-            </EmptyState>
-          ) : (
-            <ul className="space-y-2">
-              {slots.map((s) => {
-                const bookingId = bookingBySlot.get(s.id);
-                return (
-                  <li key={s.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface p-3 shadow-card">
-                    <div className="min-w-0 text-sm">
-                      <p className="flex items-center gap-1.5 font-bold">
-                        {formatSlot(s.start_at, s.end_at)}
-                        {s.weekly_hour_id && <Badge tone="muted" icon={<Repeat className="size-3" aria-hidden />}>毎週</Badge>}
-                      </p>
-                      <p className="flex items-center gap-1 truncate text-text-sub">
-                        {slotModes(s.places).inPerson ? <MapPin className="size-3.5 shrink-0" aria-hidden /> : <Video className="size-3.5 shrink-0" aria-hidden />}
-                        {placesLabel(s)}
-                      </p>
-                    </div>
-                    {s.status === "booked" ? (
-                      bookingId ? (
-                        <Link href={`/bookings/${bookingId}`} className="flex min-h-11 items-center">
-                          <Badge tone="success">予約あり →</Badge>
-                        </Link>
-                      ) : (
-                        <Badge tone="success">予約あり</Badge>
-                      )
-                    ) : (
-                      <form action={cancelSlot}>
-                        <input type="hidden" name="id" value={s.id} />
-                        <SubmitButton variant="ghost" pendingText="…" className="text-xs">取り消す</SubmitButton>
-                      </form>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <h3 id="slots-heading" className="mb-1 text-lg">これからの枠（1ヶ月先まで）</h3>
+          <p className="mb-3 text-sm text-text-sub">日付を押すと、その日の枠が出ます。休む日は、その日の枠を取り消してください。</p>
+          <SlotCalendar days={days} initialKey={initialKey} />
         </section>
       </div>
     </div>

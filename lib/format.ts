@@ -60,3 +60,25 @@ export function timeRange(start: string, minutes: number): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(h)}:${pad(m)}〜${pad(Math.floor(end / 60) % 24)}:${pad(end % 60)}`;
 }
+
+/** 日本時間の日付（YYYY-MM-DD） */
+export function jstDateKey(at: string): string {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: TZ }).format(new Date(at));
+}
+
+/** 例: 12:20〜12:35（日本時間） */
+export function formatTimeRange(startAt: string, endAt: string): string {
+  return `${timeFmt.format(new Date(startAt))}〜${timeFmt.format(new Date(endAt))}`;
+}
+
+/** "YYYY-MM-DD" に日数を足す */
+export function addDaysKey(key: string, days: number): string {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/** "YYYY-MM-DD" の曜日（月曜 = 0 … 日曜 = 6） */
+export function mondayIndex(key: string): number {
+  const [y, m, d] = key.split("-").map(Number);
+  return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
+}
