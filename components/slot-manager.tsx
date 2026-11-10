@@ -1,24 +1,15 @@
 import Link from "next/link";
-import { CalendarClock, MapPin, Repeat, Trash2, Video } from "lucide-react";
+import { CalendarClock, CopyPlus, MapPin, Repeat, Video } from "lucide-react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { cancelSlot, deleteWeeklyHour } from "@/app/(app)/slots/actions";
+import { cancelSlot } from "@/app/(app)/slots/actions";
+import { WeeklySchedule, type WeeklyEntry } from "./weekly-schedule";
 import { WeeklyHoursForm } from "./weekly-hours-form";
 import { SlotForm } from "./slot-form";
 import { SubmitButton } from "./form-bits";
 import { Badge, Card, EmptyState } from "./ui";
-import { daysAgoIso, formatSlot, todayJst, WEEKDAYS } from "@/lib/format";
+import { daysAgoIso, formatSlot, todayJst } from "@/lib/format";
 import { placesLabel, slotModes } from "@/lib/safety";
-import type { MeetingPlace, Slot } from "@/lib/types";
-
-type WeeklyHour = { id: string; weekday: number; start_time: string; minutes: number; places: MeetingPlace[]; place_note: string | null };
-
-/** "12:20:00" と 15 → "12:20〜12:35" */
-function timeRange(start: string, minutes: number): string {
-  const [h, m] = start.split(":").map(Number);
-  const end = h * 60 + m + minutes;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(h)}:${pad(m)}〜${pad(Math.floor(end / 60) % 24)}:${pad(end % 60)}`;
-}
+import type { Slot } from "@/lib/types";
 
 /**
  * 空き枠の登録と、これからの枠の一覧。/slots とプロフィールの編集画面で使う。
@@ -35,9 +26,16 @@ export async function SlotManager({ supabase, teacherId, stacked = false }: { su
       .order("start_at"),
     supabase.from("offers").select("id", { count: "exact", head: true }).eq("teacher_id", teacherId).eq("is_active", true),
     supabase.from("bookings").select("id, slot_id").eq("teacher_id", teacherId).eq("status", "booked"),
-    supabase.from("weekly_hours").select("id, weekday, start_time, minutes, places, place_note").eq("teacher_id", teacherId).order("weekday").order("start_time"),
+    supabase
+      .from("weekly_hours")
+      .select("id, weekday, start_time, minutes, places, place_note, secret:weekly_hour_secrets(meeting_url)")
+      .eq("teacher_id", teacherId)
+      .order("weekday")
+      .order("start_time"),
   ]);
-  const weekly = (weeklyRows ?? []) as WeeklyHour[];
+  const weekly: WeeklyEntry[] = ((weeklyRows ?? []) as unknown as (Omit<WeeklyEntry, "meeting_url"> & { secret: { meeting_url: string } | { meeting_url: string }[] | null })[]).map(
+    ({ secret, ...w }) => ({ ...w, meeting_url: (Array.isArray(secret) ? secret[0]?.meeting_url : secret?.meeting_url) ?? null }),
+  );
   const slots = (slotRows ?? []) as Slot[];
   const bookingBySlot = new Map((bookings ?? []).map((b) => [b.slot_id as string, b.id as string]));
 
@@ -55,49 +53,20 @@ export async function SlotManager({ supabase, teacherId, stacked = false }: { su
           毎週のオフィスアワー（月〜日）
         </h3>
         <p className="text-sm text-text-sub">
-          登録すると、4週間先までの空き枠が自動でできます（毎日、先の週が足されます）。休む週は、下の「これからの枠」でその日だけ取り消してください。
+          曜日ごとに、話せる時間を登録できます（授業のない時間など。1日にいくつでも）。登録すると4週間先までの空き枠が自動でできて、毎日先の週が足されます。休む日は、下の「これからの枠」でその日だけ取り消してください。
         </p>
-        <div className={stacked ? "space-y-6" : "grid gap-6 lg:grid-cols-2 lg:items-start"}>
-          <Card className="min-w-0 py-2">
-            <ul className="divide-y divide-border">
-              {WEEKDAYS.map((label, i) => {
-                const items = weekly.filter((w) => w.weekday === i + 1);
-                return (
-                  <li key={label} className="flex gap-3 py-2.5">
-                    <span className={`flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${items.length ? "bg-primary text-on-primary" : "bg-bg-section text-text-sub"}`}>
-                      {label}
-                    </span>
-                    {items.length === 0 ? (
-                      <span className="self-center text-sm text-text-sub">—</span>
-                    ) : (
-                      <ul className="min-w-0 flex-1 space-y-1">
-                        {items.map((w) => (
-                          <li key={w.id} className="flex items-center justify-between gap-2 text-sm">
-                            <span className="min-w-0">
-                              <span className="font-bold">{timeRange(w.start_time, w.minutes)}</span>
-                              <span className="block truncate text-xs text-text-sub">{placesLabel(w)}</span>
-                            </span>
-                            <form action={deleteWeeklyHour}>
-                              <input type="hidden" name="id" value={w.id} />
-                              <SubmitButton variant="ghost" pendingText="…" className="text-xs">
-                                <Trash2 className="size-3.5" aria-hidden />
-                                <span className="sr-only">{label}曜 {timeRange(w.start_time, w.minutes)} を</span>削除
-                              </SubmitButton>
-                            </form>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </Card>
-          <Card className="min-w-0">
-            <h4 className="mb-4 font-bold">毎週の時間を追加する</h4>
+        <Card className="min-w-0 py-2">
+          <WeeklySchedule entries={weekly} />
+        </Card>
+        <details className="rounded-lg border border-border bg-surface p-4 shadow-card open:p-5">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-bold text-primary">
+            <CopyPlus className="size-4" aria-hidden />
+            同じ時間を、いくつかの曜日にまとめて追加する
+          </summary>
+          <div className="mt-4">
             <WeeklyHoursForm />
-          </Card>
-        </div>
+          </div>
+        </details>
       </section>
 
       <div className={stacked ? "space-y-8" : "grid gap-8 lg:grid-cols-[--spacing(100)_1fr] lg:items-start"}>

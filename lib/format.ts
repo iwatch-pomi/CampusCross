@@ -52,3 +52,11 @@ export function hoursFromNowIso(hours: number): string {
 
 /** 曜日（月曜はじまり。DB の weekly_hours.weekday は 1=月 … 7=日） */
 export const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"] as const;
+
+/** "12:20:00" と 15 → "12:20〜12:35" */
+export function timeRange(start: string, minutes: number): string {
+  const [h, m] = start.split(":").map(Number);
+  const end = h * 60 + m + minutes;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(h)}:${pad(m)}〜${pad(Math.floor(end / 60) % 24)}:${pad(end % 60)}`;
+}

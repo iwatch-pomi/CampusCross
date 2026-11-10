@@ -13,10 +13,14 @@ export function PlaceFields({
   places,
   onChange,
   idPrefix = "",
+  defaultNote,
+  defaultUrl,
 }: {
   places: MeetingPlace[];
   onChange: (next: MeetingPlace[]) => void;
   idPrefix?: string;
+  defaultNote?: string | null;
+  defaultUrl?: string | null;
 }) {
   const toggle = (p: MeetingPlace) =>
     onChange(places.includes(p) ? places.filter((x) => x !== p) : PLACE_ORDER.filter((x) => x === p || places.includes(x)));
@@ -53,12 +57,12 @@ export function PlaceFields({
 
       {hasZoom && (
         <Field label="ZoomのURL" htmlFor={`${idPrefix}meeting_url`} required hint="Zoom を選んで予約した人にだけ表示されます。一覧には出ません">
-          <input id={`${idPrefix}meeting_url`} name="meeting_url" type="url" required inputMode="url" placeholder="https://zoom.us/j/..." className={INPUT} />
+          <input id={`${idPrefix}meeting_url`} name="meeting_url" type="url" required inputMode="url" placeholder="https://zoom.us/j/..." defaultValue={defaultUrl ?? ""} className={INPUT} />
         </Field>
       )}
       {hasInPerson && (
         <Field label="待ち合わせの目印（任意）" htmlFor={`${idPrefix}place_note`} hint="例：中央図書館1F 入口付近、窓側のテーブル（40文字まで）">
-          <input id={`${idPrefix}place_note`} name="place_note" maxLength={40} placeholder="入口すぐのテーブル" className={INPUT} />
+          <input id={`${idPrefix}place_note`} name="place_note" maxLength={40} placeholder="入口すぐのテーブル" defaultValue={defaultNote ?? ""} className={INPUT} />
         </Field>
       )}
     </>

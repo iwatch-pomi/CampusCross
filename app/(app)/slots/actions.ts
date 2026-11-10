@@ -80,10 +80,8 @@ export async function cancelSlot(formData: FormData): Promise<void> {
 }
 
 /** 毎週のオフィスアワーを登録する（選んだ曜日ごとに1つ）。登録したら4週間先までの枠をつくる */
-export async function createWeeklyHours(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const { supabase, profile } = await requireOnboarded();
-
-  const weekdays = [...new Set(formData.getAll("weekday").map(Number))].filter((d) => Number.isInteger(d) && d >= 1 && d <= 7);
+/** 毎週のオフィスアワーの入力（時刻・長さ・場所・目印・Zoom）を読み取って確かめる */
+function parseWeeklyFields(formData: FormData) {
   const time = String(formData.get("time") ?? "");
   const minutes = formData.get("minutes") === "30" ? 30 : 15;
   const places = PLACE_ORDER.filter((p) => formData.getAll("place").includes(p)) as MeetingPlace[];
@@ -92,17 +90,24 @@ export async function createWeeklyHours(_prev: ActionState, formData: FormData):
   const hasZoom = places.includes("zoom");
   const hasInPerson = places.some((p) => p !== "zoom");
 
+  let error: string | null = null;
+  if (!/^\d{2}:\d{2}$/.test(time)) error = "開始時刻を入力してください";
+  else if (places.length === 0) error = "場所を1つ以上選んでください";
+  else if (hasInPerson && placeNote && placeNote.length > 40) error = "目印は40文字以内にしてください";
+  else if (hasInPerson && placeNote && CLOSED_ROOM.test(placeNote)) error = "目印に個室・研究室・自宅などは書けません（公共スペース内の目印だけにしてください）";
+  else if (hasInPerson && hasContactInfo(placeNote)) error = CONTACT_INFO_ERROR;
+  else if (hasZoom && !ZOOM_URL.test(meetingUrl)) error = "ZoomのURL（https://〜zoom.us/〜）を入力してください。Zoom を選んで予約した人にだけ表示されます";
+
+  return { error, time, minutes, places, placeNote: hasInPerson ? placeNote : null, meetingUrl, hasZoom };
+}
+
+export async function createWeeklyHours(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { supabase, profile } = await requireOnboarded();
+
+  const weekdays = [...new Set(formData.getAll("weekday").map(Number))].filter((d) => Number.isInteger(d) && d >= 1 && d <= 7);
   if (weekdays.length === 0) return { error: "曜日を1つ以上選んでください" };
-  if (!/^\d{2}:\d{2}$/.test(time)) return { error: "開始時刻を入力してください" };
-  if (places.length === 0) return { error: "場所を1つ以上選んでください" };
-  if (hasInPerson && placeNote) {
-    if (placeNote.length > 40) return { error: "目印は40文字以内にしてください" };
-    if (CLOSED_ROOM.test(placeNote)) return { error: "目印に個室・研究室・自宅などは書けません（公共スペース内の目印だけにしてください）" };
-    if (hasContactInfo(placeNote)) return { error: CONTACT_INFO_ERROR };
-  }
-  if (hasZoom && !ZOOM_URL.test(meetingUrl)) {
-    return { error: "ZoomのURL（https://〜zoom.us/〜）を入力してください。Zoom を選んで予約した人にだけ表示されます" };
-  }
+  const { error: invalid, time, minutes, places, placeNote, meetingUrl, hasZoom } = parseWeeklyFields(formData);
+  if (invalid) return { error: invalid };
 
   const { data: created, error } = await supabase
     .from("weekly_hours")
@@ -113,7 +118,7 @@ export async function createWeeklyHours(_prev: ActionState, formData: FormData):
         start_time: time,
         minutes,
         places,
-        place_note: hasInPerson ? placeNote : null,
+        place_note: placeNote,
       })),
     )
     .select("id");
@@ -146,4 +151,51 @@ export async function deleteWeeklyHour(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   await supabase.from("weekly_hours").delete().eq("id", id).eq("teacher_id", profile.id);
   revalidatePath("/", "layout");
+}
+
+/** 毎週のオフィスアワーを1つ変更する。変更すると、先の空き枠を新しい時間で作り直す（予約の入った枠と休みにした日はそのまま） */
+export async function updateWeeklyHour(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { supabase, profile } = await requireOnboarded();
+  const id = String(formData.get("id") ?? "");
+  const { error: invalid, time, minutes, places, placeNote, meetingUrl, hasZoom } = parseWeeklyFields(formData);
+  if (invalid) return { error: invalid };
+
+  const { error, count } = await supabase
+    .from("weekly_hours")
+    .update({ start_time: time, minutes, places, place_note: placeNote }, { count: "exact" })
+    .eq("id", id)
+    .eq("teacher_id", profile.id);
+  if (error) {
+    if (error.code === "23505") return { error: "同じ曜日・同じ開始時刻の登録がすでにあります" };
+    return { error: friendlyDbError(error, "変更できませんでした") };
+  }
+  if (count === 0) return { error: "登録が見つかりません" };
+
+  if (hasZoom) {
+    // URL だけを書き換える（なければ新しく登録する）
+    const { error: updateError, count: updated } = await supabase
+      .from("weekly_hour_secrets")
+      .update({ meeting_url: meetingUrl }, { count: "exact" })
+      .eq("weekly_hour_id", id);
+    const { error: secretError } =
+      !updateError && updated === 0
+        ? await supabase.from("weekly_hour_secrets").insert({ weekly_hour_id: id, meeting_url: meetingUrl })
+        : { error: updateError };
+    if (secretError) return { error: friendlyDbError(secretError, "ZoomのURLを保存できませんでした") };
+    // すでにある先の枠（予約が入ったものも）の URL も新しくする
+    const { data: future } = await supabase
+      .from("slots")
+      .select("id")
+      .eq("weekly_hour_id", id)
+      .neq("status", "cancelled")
+      .gt("start_at", new Date().toISOString());
+    const ids = (future ?? []).map((s) => s.id as string);
+    if (ids.length) await supabase.from("slot_secrets").update({ meeting_url: meetingUrl }).in("slot_id", ids);
+  } else {
+    await supabase.from("weekly_hour_secrets").delete().eq("weekly_hour_id", id);
+  }
+
+  await supabase.rpc("sync_my_weekly_slots");
+  revalidatePath("/", "layout");
+  return { ok: true, message: "変更しました" };
 }
