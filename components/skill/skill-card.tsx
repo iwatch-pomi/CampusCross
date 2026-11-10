@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CalendarClock, ShieldCheck, Shuffle, Ticket } from "lucide-react";
-import { Avatar, Badge } from "@/components/ui";
+import { Avatar, Badge, OfficialBadge } from "@/components/ui";
 import { categoryMeta } from "@/lib/categories";
 import { SkillThumbnail } from "./skill-thumbnail";
 import type { OfferKind } from "@/lib/types";
@@ -15,7 +15,7 @@ export type SkillCardData = {
   durationMin: number;
   /** 1回あたりのチケット枚数（構想では常に1枚） */
   tickets?: number;
-  teacher: { id: string; name: string; faculty?: string | null; grade?: string | null };
+  teacher: { id: string; name: string; faculty?: string | null; grade?: string | null; official?: boolean };
   cross?: boolean;
   /** 話す人が「同性からの申し込みのみ」にしている */
   sameGenderOnly?: boolean;
@@ -68,7 +68,10 @@ export function SkillCard({ data, className = "" }: { data: SkillCardData; class
           <div className="flex min-w-0 items-center gap-2">
             <Avatar seed={data.teacher.id} size="sm" />
             <p className="min-w-0 text-xs leading-tight">
-              <span className="block truncate font-bold">{data.teacher.name}</span>
+              <span className="flex items-center gap-1 font-bold">
+                <span className="truncate">{data.teacher.name}</span>
+                {data.teacher.official && <OfficialBadge compact />}
+              </span>
               <span className="block truncate text-text-sub">
                 {[data.teacher.faculty, data.teacher.grade].filter(Boolean).join(" ")}
               </span>

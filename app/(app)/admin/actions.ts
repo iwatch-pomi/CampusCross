@@ -77,3 +77,15 @@ export async function recordReferral(_prev: ActionState, formData: FormData): Pr
   revalidatePath("/admin", "layout");
   return { ok: true, message: "大学への通報を記録しました" };
 }
+
+export async function setOfficialBadge(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { supabase } = await requireAdmin();
+  const userId = String(formData.get("user_id") ?? "");
+  const on = formData.get("on") === "1";
+
+  const { error } = await supabase.rpc("admin_set_official", { p_user: userId, p_on: on });
+  if (error) return { error: friendlyDbError(error, "バッジを変更できませんでした") };
+
+  revalidatePath("/", "layout");
+  return { ok: true, message: on ? "公式運営バッジを付けました" : "公式運営バッジを外しました" };
+}

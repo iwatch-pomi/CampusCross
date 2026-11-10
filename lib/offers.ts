@@ -10,7 +10,7 @@ import type { SkillCardData } from "@/components/skill/skill-card";
 export type OfferWithTeacher = Offer & { teacher: PublicProfile };
 
 export const TEACHER_SELECT =
-  "teacher:profiles!offers_teacher_id_fkey(id, display_name, faculty_id, field_code, grade, bio, same_gender_only, faculty:faculties(name))";
+  "teacher:profiles!offers_teacher_id_fkey(id, display_name, faculty_id, field_code, grade, bio, same_gender_only, is_official, faculty:faculties(name))";
 
 /** 自分が申し込める相手（同性限定・ブロック・停止を DB 側で判定）。性別そのものは返ってこない */
 export async function bookableTeacherIds(supabase: SupabaseClient, ids: string[]): Promise<Set<string>> {
@@ -134,6 +134,7 @@ export function toCard(o: OfferWithTeacher, cross: boolean, open: Slot[], fieldL
       name: o.teacher.display_name,
       faculty: o.teacher.faculty?.name,
       grade: o.teacher.grade ? GRADE_LABEL[o.teacher.grade] : null,
+      official: o.teacher.is_official,
     },
     cross,
     sameGenderOnly: o.teacher.same_gender_only,

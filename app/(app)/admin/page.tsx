@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Flag, ShieldAlert } from "lucide-react";
+import { ArrowRight, BadgeCheck, Flag, ShieldAlert } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { ACTION_LABEL, REPORT_SELECT, STATUS_LABEL, STATUS_TONE, type ReportRow } from "@/lib/admin";
 import { REPORT_REASON_LABEL } from "@/lib/safety";
 import { formatDateTime } from "@/lib/format";
-import { Badge, Card, EmptyState, PageTitle } from "@/components/ui";
+import { Badge, Card, EmptyState, OfficialBadge, PageTitle } from "@/components/ui";
 import type { ModerationStatus } from "@/lib/types";
 
 export const metadata: Metadata = { title: "運営" };
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "運営" };
 export default async function AdminPage() {
   const { supabase } = await requireAdmin();
 
-  const [{ data: reportRows }, { data: held }, { data: actions }] = await Promise.all([
+  const [{ data: reportRows }, { data: held }, { data: actions }, { data: admins }] = await Promise.all([
     supabase.from("reports").select(REPORT_SELECT).in("status", ["open", "reviewing"]).order("created_at", { ascending: false }).limit(100),
     supabase.from("profiles").select("id, display_name, moderation_status, moderated_at").neq("moderation_status", "active").order("moderated_at", { ascending: false }).limit(50),
     supabase
@@ -21,6 +21,7 @@ export default async function AdminPage() {
       .select("id, action, note, created_at, target:profiles!moderation_actions_target_id_fkey(id, display_name)")
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase.from("profiles").select("id, display_name, is_official").eq("is_admin", true).order("created_at"),
   ]);
   const reports = (reportRows ?? []) as unknown as ReportRow[];
 
@@ -88,6 +89,24 @@ export default async function AdminPage() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section aria-labelledby="admins-heading">
+        <h2 id="admins-heading" className="mb-1 flex items-center gap-2 text-lg">
+          <BadgeCheck className="size-5 text-primary" aria-hidden />
+          運営メンバーと公式運営バッジ
+        </h2>
+        <p className="mb-3 text-sm text-text-sub">名前を押すと、バッジを付けたり外したりできます。</p>
+        <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
+          {(admins as { id: string; display_name: string; is_official: boolean }[] | null)?.map((u) => (
+            <li key={u.id}>
+              <Link href={`/admin/users/${u.id}`} className="flex min-h-14 items-center justify-between gap-3 px-4 hover:bg-bg-section">
+                <span className="font-bold">{u.display_name || "（未登録）"}</span>
+                {u.is_official ? <OfficialBadge /> : <span className="text-xs text-text-sub">バッジなし</span>}
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section aria-labelledby="log-heading">

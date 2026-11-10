@@ -5,7 +5,7 @@ import { CalendarClock, MapPin, MessageSquareText, ShieldCheck, Shuffle, Video }
 import { requireOnboarded } from "@/lib/auth";
 import { CancelForm, CompleteForm, SafetyForms, SafetyReviewForm, ThanksForm } from "@/components/booking-actions";
 import { placeLabel, PLACES } from "@/lib/safety";
-import { Avatar, Badge, Card } from "@/components/ui";
+import { Avatar, Badge, Card, OfficialBadge } from "@/components/ui";
 import { TestimonialCard } from "@/components/marketing/testimonial-card";
 import { GRADE_LABEL } from "@/lib/constants";
 import { formatDateTime, formatSlot, hasStarted } from "@/lib/format";
@@ -18,7 +18,7 @@ type Row = Booking & {
   teacher: PublicProfile;
 };
 
-const PERSON = "id, display_name, faculty_id, field_code, grade, bio, same_gender_only, faculty:faculties(name)";
+const PERSON = "id, display_name, faculty_id, field_code, grade, bio, same_gender_only, is_official, faculty:faculties(name)";
 
 export default async function BookingPage({ params, searchParams }: PageProps<"/bookings/[id]">) {
   const { id } = await params;
@@ -91,7 +91,10 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
             <Avatar seed={other.id} name={other.display_name} size="md" />
             <p className="min-w-0 text-sm">
               <span className="block text-xs text-text-sub">{iAmLearner ? "話す人" : "予約した人"}</span>
-              <span className="block truncate font-bold">{other.display_name}さん</span>
+              <span className="flex items-center gap-1 font-bold">
+                <span className="truncate">{other.display_name}さん</span>
+                {other.is_official && <OfficialBadge compact />}
+              </span>
               <span className="block truncate text-xs text-text-sub">
                 {[other.faculty?.name, other.grade && GRADE_LABEL[other.grade]].filter(Boolean).join(" ")}
               </span>

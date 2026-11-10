@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, CalendarClock, LogOut, Pencil, Plus, ShieldAlert, ShieldCheck, Ticket } from "lucide-react";
 import { requireOnboarded } from "@/lib/auth";
 import { loadMasters } from "@/lib/masters";
-import { Avatar, Badge, ButtonLink, Card, EmptyState, SectionHeading, buttonClass } from "@/components/ui";
+import { Avatar, Badge, ButtonLink, Card, EmptyState, OfficialBadge, SectionHeading, buttonClass } from "@/components/ui";
 import { TestimonialCard } from "@/components/marketing/testimonial-card";
 import { CategoryIcon } from "@/components/category/category-icon";
 import { GRADE_LABEL, KIND_LABEL, LEDGER_LABEL } from "@/lib/constants";
@@ -57,7 +57,10 @@ export default async function MePage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <Avatar seed={profile.id} name={profile.display_name} size="xl" className="ring-4 ring-surface" />
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl">{profile.display_name}</h1>
+            <h1 className="flex flex-wrap items-center gap-2 text-2xl">
+              {profile.display_name}
+              {profile.is_official && <OfficialBadge />}
+            </h1>
             <p className="text-sm text-text-sub">
               {[profile.faculty_id && facultyName[profile.faculty_id], profile.grade && GRADE_LABEL[profile.grade]].filter(Boolean).join(" ・ ")}
             </p>

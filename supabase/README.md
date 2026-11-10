@@ -43,6 +43,13 @@
 | `admin_set_status(p_user, p_status, p_note, p_report_id)` | 運営 | 一時停止・解除・永久凍結。凍結すると予約の取り消しと返却、カードの非公開、ログイン停止（`auth.users.banned_until`）、セッション削除、再登録の拒否 |
 | `admin_resolve_report(...)` / `admin_record_referral(...)` | 運営 | 通報への対応の記録／大学への通報の記録 |
 
+## 公式運営バッジ（`migrations/20261110000000_official_badge.sql`）
+
+| 追加したもの | 内容 |
+|---|---|
+| `profiles.is_official` | 公式運営バッジ。本人は変えられず、運営が `admin_set_official(p_user, p_on)` で付け外しする。運営の権限（`is_admin`）がある人にだけ付けられ、権限を外すとバッジも自動で外れる |
+| 表示名のチェック | バッジのない人は、「運営」「公式」「事務局」「管理者」「Campus-Cross」「キャンパス・クロス」を含む表示名を使えない（なりすまし防止） |
+
 自動一時停止のしきい値は `private.app_config.hold_threshold`（初期値2人）、利用規約の版は `terms_version` で変えられます（画面側の `lib/content.ts` の `TERMS_VERSION` も合わせて変える）。
 
 ## RPC（クライアントから `supabase.rpc()` で呼ぶ）

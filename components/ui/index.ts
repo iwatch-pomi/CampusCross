@@ -1,6 +1,7 @@
 export { Button, ButtonLink, buttonClass, type ButtonVariant } from "./button";
 export { Badge, type BadgeTone } from "./badge";
 export { Avatar } from "./avatar";
+export { OfficialBadge } from "./official-badge";
 export { Card } from "./card";
 export { EmptyState } from "./empty-state";
 export { Skeleton, SkillCardSkeleton } from "./skeleton";

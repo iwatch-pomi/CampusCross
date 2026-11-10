@@ -9,7 +9,7 @@ import { GRADE_LABEL } from "@/lib/constants";
 import { formatSlot, minutesBetween } from "@/lib/format";
 import { placeLabel } from "@/lib/safety";
 import { BookingForm } from "@/components/booking-form";
-import { Avatar, Badge, ButtonLink, Card, EmptyState, buttonClass } from "@/components/ui";
+import { Avatar, Badge, ButtonLink, Card, EmptyState, OfficialBadge, buttonClass } from "@/components/ui";
 import { SkillThumbnail } from "@/components/skill/skill-thumbnail";
 import { SkillCard } from "@/components/skill/skill-card";
 import { SkillCarousel } from "@/components/skill/skill-carousel";
@@ -117,7 +117,10 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/of
             <Card className="flex gap-4">
               <Avatar seed={t.id} name={t.display_name} size="lg" />
               <div className="min-w-0">
-                <p className="text-lg font-bold">{t.display_name}</p>
+                <p className="flex flex-wrap items-center gap-2 text-lg font-bold">
+                  {t.display_name}
+                  {t.is_official && <OfficialBadge />}
+                </p>
                 <p className="text-sm text-text-sub">
                   {[t.faculty?.name, t.grade && GRADE_LABEL[t.grade], t.field_code && fieldLabel[t.field_code]].filter(Boolean).join(" ・ ")}
                 </p>

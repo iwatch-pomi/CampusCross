@@ -21,6 +21,8 @@ export const ACTION_LABEL: Record<string, string> = {
   unban: "凍結解除",
   resolve_report: "通報に対応",
   university_referral: "大学へ通報",
+  official_on: "公式運営バッジを付けた",
+  official_off: "公式運営バッジを外した",
 };
 
 export type ReportRow = {

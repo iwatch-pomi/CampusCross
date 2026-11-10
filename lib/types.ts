@@ -21,6 +21,8 @@ export type Profile = {
   terms_agreed_at: string | null;
   onboarded: boolean;
   is_admin: boolean;
+  /** 公式運営バッジ（運営が付ける。本人は変えられない） */
+  is_official: boolean;
   is_suspended: boolean;
   moderation_status: ModerationStatus;
   created_at: string;
@@ -30,7 +32,7 @@ export type Profile = {
 /** 他の人に見せるプロフィール（ニックネーム・学部・学年まで。本名・学科・性別は出さない） */
 export type PublicProfile = Pick<
   Profile,
-  "id" | "display_name" | "faculty_id" | "field_code" | "grade" | "bio" | "same_gender_only"
+  "id" | "display_name" | "faculty_id" | "field_code" | "grade" | "bio" | "same_gender_only" | "is_official"
 > & { faculty: { name: string } | null };
 
 export type Offer = {

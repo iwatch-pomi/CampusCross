@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { recordReferral, resolveReport, setUserStatus } from "@/app/(app)/admin/actions";
+import { recordReferral, resolveReport, setOfficialBadge, setUserStatus } from "@/app/(app)/admin/actions";
 import { FormMessage, SubmitButton } from "./form-bits";
 import { CHOICE, Field, INPUT } from "./ui";
 import type { ModerationStatus } from "@/lib/types";
@@ -101,6 +101,21 @@ export function ReferralForm({ userId, today }: { userId: string; today: string 
       </Field>
       <FormMessage state={state} />
       <SubmitButton variant="outline" className="w-full" pendingText="記録中…">大学への通報を記録する</SubmitButton>
+    </form>
+  );
+}
+
+/** 公式運営バッジの付け外し（運営の権限がある人だけ） */
+export function OfficialBadgeForm({ userId, current }: { userId: string; current: boolean }) {
+  const [state, action] = useActionState(setOfficialBadge, undefined);
+  return (
+    <form action={action} className="space-y-3">
+      <input type="hidden" name="user_id" value={userId} />
+      <input type="hidden" name="on" value={current ? "0" : "1"} />
+      <FormMessage state={state} />
+      <SubmitButton variant={current ? "outline" : "primary"} className="w-full" pendingText="処理中…">
+        {current ? "公式運営バッジを外す" : "公式運営バッジを付ける"}
+      </SubmitButton>
     </form>
   );
 }

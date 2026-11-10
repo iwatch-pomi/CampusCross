@@ -82,6 +82,8 @@ update public.profiles set is_admin = true
  where id = (select id from auth.users where email = 'あなたの大学メール');
 ```
 
+権限を付けたあと、運営用ページの「運営メンバーと公式運営バッジ」から自分の名前を押すと、**公式運営バッジ**を付けられます。カード・カードの詳細・予約の画面で、名前の横に「公式運営」と表示されます。
+
 ## 本番に出す（Vercel）
 
 > **メールの送信**：ログインコードと通知のメールは、独自ドメイン `campuscross.app`（Cloudflare Registrar で取得）から Resend 経由で送ります。ログインコードは Supabase の Authentication → SMTP Settings（Host `smtp.resend.com`・Port `465`・Username `resend`・Password に Resend の API キー、送信元 `noreply@campuscross.app`）、通知は Vercel の `RESEND_API_KEY`・`NOTIFY_FROM` で設定します。

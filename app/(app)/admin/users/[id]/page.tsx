@@ -8,8 +8,8 @@ import { ACTION_LABEL, REPORT_SELECT, STATUS_LABEL, STATUS_TONE, type ReportRow 
 import { FEELING_LABEL, REPORT_REASON_LABEL, REVIEW_FLAGS } from "@/lib/safety";
 import { GRADE_LABEL } from "@/lib/constants";
 import { formatDateTime, todayJst } from "@/lib/format";
-import { Avatar, Badge, Card, EmptyState } from "@/components/ui";
-import { ReferralForm, ResolveReportForm, StatusForm } from "@/components/admin-forms";
+import { Avatar, Badge, Card, EmptyState, OfficialBadge } from "@/components/ui";
+import { OfficialBadgeForm, ReferralForm, ResolveReportForm, StatusForm } from "@/components/admin-forms";
 import type { Profile } from "@/lib/types";
 
 export const metadata: Metadata = { title: "ユーザーの確認" };
@@ -49,7 +49,11 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
       <Card className="flex flex-wrap items-center gap-4">
         <Avatar seed={user.id} size="lg" />
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl">{user.display_name}</h1>
+          <h1 className="flex flex-wrap items-center gap-2 text-xl">
+            {user.display_name}
+            {user.is_official && <OfficialBadge />}
+            {user.is_admin && <Badge tone="muted">運営の権限あり</Badge>}
+          </h1>
           <p className="text-sm text-text-sub">
             {[user.faculty_id && facultyName[user.faculty_id], user.grade && GRADE_LABEL[user.grade]].filter(Boolean).join(" ・ ")}
           </p>
@@ -132,6 +136,15 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
         </div>
 
         <aside className="space-y-6 lg:sticky lg:top-24">
+          {user.is_admin && (
+            <Card>
+              <h2 className="mb-1 text-lg">公式運営バッジ</h2>
+              <p className="mb-3 text-xs text-text-sub">
+                付けると、カード・カードの詳細・予約の画面で、名前の横に「公式運営」と表示されます。運営の権限がある人にだけ付けられます。
+              </p>
+              <OfficialBadgeForm userId={user.id} current={user.is_official} />
+            </Card>
+          )}
           <Card>
             <h2 className="mb-3 text-lg">利用状態を変える</h2>
             <StatusForm
