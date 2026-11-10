@@ -30,6 +30,8 @@ async function sendCode(formData: FormData): Promise<LoginState> {
     options: { shouldCreateUser: true },
   });
   if (error) {
+    // 原因を Vercel の Logs で追えるようにする（メールアドレスは出さない）
+    console.error("signInWithOtp failed", { status: error.status, code: error.code, message: error.message });
     return { step: "email", error: toJapanese(error.message) };
   }
   return { step: "code", email };
