@@ -1,14 +1,15 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock, MapPin, MessageSquareText, ShieldCheck, Shuffle, Video } from "lucide-react";
+import { CalendarClock, CalendarSync, MapPin, MessageSquareText, ShieldCheck, Shuffle, Video } from "lucide-react";
 import { requireOnboarded } from "@/lib/auth";
 import { CancelForm, CompleteForm, SafetyForms, SafetyReviewForm, ThanksForm } from "@/components/booking-actions";
 import { placeLabel, PLACES } from "@/lib/safety";
 import { Avatar, Badge, Card, OfficialBadge } from "@/components/ui";
 import { TestimonialCard } from "@/components/marketing/testimonial-card";
 import { GRADE_LABEL } from "@/lib/constants";
-import { formatDateTime, formatSlot, hasStarted } from "@/lib/format";
+import { formatDateTime, formatSlot, hasStarted, hoursFromNowIso, todayJst } from "@/lib/format";
+import { ProposeRescheduleForm, RespondRescheduleForms } from "@/components/reschedule";
 import type { Booking, PublicProfile, Slot } from "@/lib/types";
 
 type Row = Booking & {
@@ -16,6 +17,15 @@ type Row = Booking & {
   offer: { id: string; title: string; kind: string; duration_min: number };
   learner: PublicProfile;
   teacher: PublicProfile;
+};
+
+type Proposal = {
+  id: string;
+  status: "pending" | "accepted" | "declined" | "expired" | "withdrawn";
+  message: string | null;
+  expires_at: string;
+  responded_at: string | null;
+  options: { id: string; start_at: string; end_at: string }[];
 };
 
 const PERSON = "id, display_name, faculty_id, field_code, grade, bio, same_gender_only, is_official, faculty:faculties(name)";
@@ -37,12 +47,24 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
   if (!data) notFound();
   const b = data as Row;
 
-  const [{ data: secret }, { data: myReview }] = await Promise.all([
+  const [{ data: secret }, { data: myReview }, { data: proposalRow }] = await Promise.all([
     b.place === "zoom" && b.status !== "cancelled"
       ? supabase.from("slot_secrets").select("meeting_url").eq("slot_id", b.slot_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from("safety_reviews").select("id").eq("booking_id", b.id).eq("reviewer_id", profile.id).maybeSingle(),
+    supabase
+      .from("reschedule_proposals")
+      .select("id, status, message, expires_at, responded_at, options:reschedule_options(id, start_at, end_at)")
+      .eq("booking_id", b.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
+  const proposal = proposalRow as Proposal | null;
+  const pending = proposal?.status === "pending" ? proposal : null;
+  const optionLabels = (pending?.options ?? [])
+    .sort((x, y) => x.start_at.localeCompare(y.start_at))
+    .map((o) => ({ id: o.id, label: formatSlot(o.start_at, o.end_at) }));
 
   const iAmLearner = b.learner_id === profile.id;
   const other = iAmLearner ? b.teacher : b.learner;
@@ -52,8 +74,32 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
   const cancelledBeforeStart = b.status === "cancelled" && !!b.cancelled_at && b.cancelled_at < b.slot.start_at;
   const canReview = started && !cancelledBeforeStart && !myReview;
 
+  // 話す人が延期を提案できるとき：予約が確定していて、開始前で、回答待ちの提案がない
+  const canPropose = b.status === "booked" && !iAmLearner && !started && !pending;
+  const slotLength = (new Date(b.slot.end_at).getTime() - new Date(b.slot.start_at).getTime()) / 60000;
+  const { data: myOpenSlots } = canPropose
+    ? await supabase
+        .from("slots")
+        .select("id, start_at, end_at")
+        .eq("teacher_id", profile.id)
+        .eq("status", "open")
+        .contains("places", [b.place])
+        .gt("start_at", hoursFromNowIso(1))
+        .order("start_at")
+        .limit(20)
+    : { data: null };
+  const proposeSlotOptions = ((myOpenSlots ?? []) as Pick<Slot, "id" | "start_at" | "end_at">[])
+    .filter((s) => (new Date(s.end_at).getTime() - new Date(s.start_at).getTime()) / 60000 >= slotLength)
+    .map((s) => ({ id: s.id, label: formatSlot(s.start_at, s.end_at) }));
+
   return (
     <div className="mx-auto max-w-2xl space-y-5">
+      {sp.rescheduled === "1" && (
+        <p role="status" className="rounded-md bg-success-soft px-4 py-3 text-sm text-success">日時を変更しました。相手にも知らせました。</p>
+      )}
+      {sp.proposed === "1" && pending && (
+        <p role="status" className="rounded-md bg-success-soft px-4 py-3 text-sm text-success">延期を提案しました。相手に知らせました。</p>
+      )}
       {sp.booked === "1" && b.status === "booked" && (
         <p role="status" className="rounded-md bg-success-soft px-4 py-3 text-sm text-success">
           予約が確定しました。チケット1枚を仮押さえしています（キャンセルすると戻ります）。
@@ -65,7 +111,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
         <article className="ticket-notch overflow-hidden rounded-lg border border-border bg-surface" style={{ ["--notch-y" as string]: "calc(100% - 5.5rem)" }}>
           <div className="space-y-3 p-5">
             <div className="flex flex-wrap gap-1.5">
-              <StatusBadge booking={b} started={started} />
+              <StatusBadge booking={b} started={started} rescheduling={!!pending} />
               {b.is_cross_field && <Badge tone="point" icon={<Shuffle className="size-3" aria-hidden />}>異分野</Badge>}
               <Badge tone="muted">{iAmLearner ? "あなたが学ぶ" : "あなたが教える"}</Badge>
             </div>
@@ -102,6 +148,34 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
           </div>
         </article>
       </div>
+
+      {pending && b.status === "booked" && (
+        <Card className="space-y-3 border-2 border-warn">
+          <h2 className="flex items-center gap-2 text-lg">
+            <CalendarSync className="size-5 text-warn" aria-hidden />
+            {iAmLearner ? `${other.display_name}さんから延期の提案が届いています` : `延期を提案中（${other.display_name}さんの返事待ち）`}
+          </h2>
+          {pending.message && <p className="whitespace-pre-wrap rounded-md bg-bg-section p-3 text-sm">{pending.message}</p>}
+          <p className="text-xs text-text-sub">
+            返事の期限：{formatDateTime(pending.expires_at)}（元の開始時刻）。期限までに返事がないと、予約は自動で取り消され、チケットは{iAmLearner ? "あなた" : "相手"}に戻ります。
+          </p>
+          {iAmLearner ? (
+            <RespondRescheduleForms bookingId={b.id} proposalId={pending.id} options={optionLabels} />
+          ) : (
+            <ul className="space-y-1 text-sm">
+              {optionLabels.map((o) => (
+                <li key={o.id} className="rounded-md bg-bg-section px-3 py-2 font-bold">{o.label}</li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      )}
+      {proposal?.status === "accepted" && b.status !== "cancelled" && (
+        <p className="flex items-center gap-1.5 text-xs text-text-sub">
+          <CalendarSync className="size-4 text-primary" aria-hidden />
+          延期の提案により、日時を変更しました{proposal.responded_at && `（${formatDateTime(proposal.responded_at)}）`}
+        </p>
+      )}
 
       {b.status === "booked" && (
         <div className="space-y-1 rounded-md bg-bg-section px-4 py-3 text-xs text-text-sub">
@@ -155,7 +229,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
         </Card>
       )}
 
-      {b.status === "booked" && iAmLearner && started && (
+      {b.status === "booked" && iAmLearner && started && !pending && (
         <Card>
           <CompleteForm bookingId={b.id} teacherName={b.teacher.display_name} />
         </Card>
@@ -163,6 +237,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
       {b.status === "booked" && iAmLearner && !started && (
         <CancelForm bookingId={b.id} label="予約をキャンセルする" hint="開始時刻まではキャンセルできます。チケットは戻ります。" />
       )}
+      {canPropose && <ProposeRescheduleForm bookingId={b.id} slotOptions={proposeSlotOptions} today={todayJst()} durationMin={slotLength} />}
       {b.status === "booked" && !iAmLearner && (
         <CancelForm
           bookingId={b.id}
@@ -176,9 +251,10 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
   );
 }
 
-function StatusBadge({ booking, started }: { booking: Booking; started: boolean }) {
+function StatusBadge({ booking, started, rescheduling }: { booking: Booking; started: boolean; rescheduling: boolean }) {
   if (booking.status === "completed") return <Badge tone="success">完了</Badge>;
   if (booking.status === "cancelled") return <Badge tone="danger">キャンセル</Badge>;
+  if (rescheduling) return <Badge tone="warn">延期の相談中</Badge>;
   return <Badge tone="primary">{started ? "完了待ち" : "予約確定"}</Badge>;
 }
 

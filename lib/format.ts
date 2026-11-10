@@ -44,3 +44,11 @@ export function hasStarted(startAt: string): boolean {
 export function daysAgoIso(days: number): string {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 }
+
+/** いまから hours 時間後の時刻（ISO 文字列） */
+export function hoursFromNowIso(hours: number): string {
+  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+}
+
+/** 曜日（月曜はじまり。DB の weekly_hours.weekday は 1=月 … 7=日） */
+export const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"] as const;

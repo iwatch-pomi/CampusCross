@@ -1,13 +1,13 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { ShieldCheck } from "lucide-react";
 import { createSlot } from "@/app/(app)/slots/actions";
 import { FormMessage, SubmitButton } from "./form-bits";
-import { CHOICE, Field, INPUT } from "./ui";
-import { PLACE_ORDER, PLACES } from "@/lib/safety";
+import { PlaceFields } from "./place-fields";
+import { Field, INPUT } from "./ui";
 import type { MeetingPlace } from "@/lib/types";
 
+/** 1回だけの枠（毎週の枠は WeeklyHoursForm） */
 export function SlotForm({ today }: { today: string }) {
   const [state, action] = useActionState(createSlot, undefined);
   const [places, setPlaces] = useState<MeetingPlace[]>(["library"]);
@@ -19,10 +19,6 @@ export function SlotForm({ today }: { today: string }) {
     setLastOk(state);
     setRound((r) => r + 1);
   }
-  const toggle = (p: MeetingPlace) =>
-    setPlaces((cur) => (cur.includes(p) ? cur.filter((x) => x !== p) : PLACE_ORDER.filter((x) => x === p || cur.includes(x))));
-  const hasZoom = places.includes("zoom");
-  const hasInPerson = places.some((p) => p !== "zoom");
 
   return (
     <form key={round} action={action} className="space-y-4">
@@ -39,51 +35,9 @@ export function SlotForm({ today }: { today: string }) {
             <option value="30">30分</option>
           </select>
         </Field>
-        <Field label="くり返し" htmlFor="repeat">
-          <select id="repeat" name="repeat" defaultValue="1" className={INPUT}>
-            <option value="1">この日だけ</option>
-            <option value="4">毎週・4週分</option>
-            <option value="8">毎週・8週分</option>
-          </select>
-        </Field>
       </div>
 
-      <fieldset>
-        <legend className="mb-1 text-sm font-bold">場所（学内の公共スペースか Zoom。いくつでも選べます）</legend>
-        <p className="mb-2 text-xs text-text-sub">複数選ぶと、予約する人がその中から選びます。</p>
-        <div className="grid grid-cols-2 gap-2">
-          {PLACE_ORDER.map((p) => {
-            const { label, hint, icon: Icon } = PLACES[p];
-            return (
-              <label key={p} className={`${CHOICE} gap-1`}>
-                <input type="checkbox" name="place" value={p} checked={places.includes(p)} onChange={() => toggle(p)} className="sr-only" />
-                <span className="flex items-center gap-1.5 font-bold">
-                  <Icon className="size-4 text-primary" aria-hidden />
-                  {label}
-                </span>
-                <span className="text-xs text-text-sub">{hint}</span>
-              </label>
-            );
-          })}
-        </div>
-        <p className="mt-2 flex gap-1.5 text-xs text-text-sub">
-          <ShieldCheck className="size-4 shrink-0 text-primary" aria-hidden />
-          密室にならないよう、研究室・個室・自宅などは選べません。
-        </p>
-      </fieldset>
-
-      {places.length === 0 && <p className="text-sm text-danger">場所を1つ以上選んでください</p>}
-
-      {hasZoom && (
-        <Field label="ZoomのURL" htmlFor="meeting_url" required hint="Zoom を選んで予約した人にだけ表示されます。一覧には出ません">
-          <input id="meeting_url" name="meeting_url" type="url" required inputMode="url" placeholder="https://zoom.us/j/..." className={INPUT} />
-        </Field>
-      )}
-      {hasInPerson && (
-        <Field label="待ち合わせの目印（任意）" htmlFor="place_note" hint="例：中央図書館1F 入口付近、窓側のテーブル（40文字まで）">
-          <input id="place_note" name="place_note" maxLength={40} placeholder="入口すぐのテーブル" className={INPUT} />
-        </Field>
-      )}
+      <PlaceFields places={places} onChange={setPlaces} />
 
       <FormMessage state={state} />
       <SubmitButton size="lg" className="w-full" pendingText="登録中…">枠を登録する</SubmitButton>

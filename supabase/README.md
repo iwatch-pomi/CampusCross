@@ -61,6 +61,30 @@
 
 ログインしていない人の問い合わせは、Next.js のサーバー側から service role で入れます（返信先のメールアドレスが必須。同じアドレスから1時間に3件、全体で1時間に30件まで）。新しい問い合わせは運営の全員にメールで知らせ、返信は Resend でメールでも届けます。
 
+## 毎週のオフィスアワー（`migrations/20261113000000_weekly_hours.sql`）
+
+| 追加したもの | 内容 |
+|---|---|
+| `weekly_hours` | 曜日（1=月 … 7=日）・開始時刻・長さ・場所の候補・目印。本人だけが読み書きできる |
+| `weekly_hour_secrets` | 毎週の枠の Zoom の URL（本人だけ）。枠をつくるときに `slot_secrets` へ写す |
+| `slots.weekly_hour_id` | どの毎週の登録から作られた枠か。同じ日時は二重に作らず、取り消した週も作り直さない |
+| `sync_my_weekly_slots()` | 自分の毎週の登録から、4週間先までの枠をつくる（登録した直後に呼ぶ） |
+| `private.generate_weekly_slots()` | 全員分をつくる。pg_cron で毎日 0:17（日本時間）に実行して、先の週を足していく |
+
+毎週の登録を消すと、そこから作った「まだ予約の入っていない先の枠」も取り消されます。
+
+## 延期の提案（`migrations/20261113010000_reschedule.sql`）
+
+| 追加したもの | 内容 |
+|---|---|
+| `reschedule_proposals` / `reschedule_options` | 提案（ひとこと・状態・返事の期限）と、候補の日時（1〜3つ）。読めるのは当事者だけ |
+| `propose_reschedule(p_booking_id, p_slot_ids, p_starts, p_message)` | 話す人。候補は自分の空き枠（予約で選ばれた場所を含み、長さが足りるもの）か、新しい日時（ほかの枠と重ならないもの） |
+| `accept_reschedule(p_proposal_id, p_option_id)` | 予約した人。予約をその日時に移し、元の枠は取り消す。新しい日時なら、場所・目印・Zoom の URL を元の枠から写した枠をつくる |
+| `decline_reschedule(p_proposal_id)` | 予約した人。予約を取り消し、チケットを戻す |
+| `private.expire_reschedules()` | 返事がないまま元の開始時刻を過ぎた提案は、予約を取り消してチケットを戻す（自動完了の処理の最初に実行） |
+
+回答待ちの提案がある予約は、完了にできません（自動完了もしない）。予約がキャンセルされると、回答待ちの提案は取り下げ扱いになります。
+
 自動一時停止のしきい値は `private.app_config.hold_threshold`（初期値2人）、利用規約の版は `terms_version` で変えられます（画面側の `lib/content.ts` の `TERMS_VERSION` も合わせて変える）。
 
 ## RPC（クライアントから `supabase.rpc()` で呼ぶ）

@@ -59,6 +59,8 @@ export type Slot = {
   places: MeetingPlace[];
   place_note: string | null;
   status: SlotStatus;
+  /** 毎週のオフィスアワーから自動で作られた枠 */
+  weekly_hour_id: string | null;
 };
 
 export type Booking = {

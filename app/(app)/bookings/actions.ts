@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { friendlyDbError, requireOnboarded } from "@/lib/auth";
 import { CONTACT_INFO_ERROR, hasContactInfo, REPORT_REASONS } from "@/lib/safety";
 import { notify } from "@/lib/notify";
+import { formatSlot, jstToIso } from "@/lib/format";
 import type { ActionState } from "@/lib/types";
 
 const text = (fd: FormData, key: string) => {
@@ -152,4 +154,94 @@ export async function submitSafetyReview(_prev: ActionState, formData: FormData)
       ? "回答ありがとうございます。運営が確認します。必要なら下の「困ったことがあったら」からブロックもできます"
       : "回答ありがとうございます。相手には表示されません",
   };
+}
+
+/** 話す人が延期を提案する（自分の空き枠、または新しい日時を合わせて1〜3つ） */
+export async function proposeReschedule(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const id = String(formData.get("booking_id") ?? "");
+  const message = text(formData, "message");
+  if ((message?.length ?? 0) > 300) return { error: "ひとことは300文字以内にしてください" };
+  if (hasContactInfo(message)) return { error: CONTACT_INFO_ERROR };
+
+  const slotIds = formData.getAll("slot_ids").map(String).filter(Boolean);
+  const dates = formData.getAll("date").map(String);
+  const times = formData.getAll("time").map(String);
+  const starts: string[] = [];
+  for (let i = 0; i < dates.length; i++) {
+    const d = dates[i]?.trim();
+    const t = times[i]?.trim();
+    if (!d && !t) continue;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d ?? "") || !/^\d{2}:\d{2}$/.test(t ?? "")) return { error: "新しい日時は、日付と時刻の両方を入力してください" };
+    starts.push(jstToIso(d, t));
+  }
+  const total = slotIds.length + starts.length;
+  if (total === 0) return { error: "候補を1つ以上選ぶか、新しい日時を入力してください" };
+  if (total > 3) return { error: "候補は3つまでにしてください" };
+
+  const { supabase, profile, booking } = await loadBooking(id);
+  if (!booking) return { error: "予約が見つかりません" };
+  const { error } = await supabase.rpc("propose_reschedule", {
+    p_booking_id: id,
+    p_slot_ids: slotIds,
+    p_starts: starts,
+    p_message: message,
+  });
+  if (error) return { error: friendlyDbError(error, "延期を提案できませんでした") };
+
+  after(() =>
+    notify({
+      userId: booking.learner_id,
+      subject: "延期の提案が届きました",
+      body: `${profile.display_name}さんから「${offerTitle(booking)}」の延期の提案が届きました。${message ? `\n\nひとこと: ${message}` : ""}\n\n予約の画面で、候補の日時から選ぶか、予約を取り消すかを選んでください。元の日時までに返事がない場合は、自動で取り消してチケットを戻します。`,
+      path: `/bookings/${id}`,
+    }),
+  );
+  revalidatePath("/", "layout");
+  redirect(`/bookings/${id}?proposed=1`);
+}
+
+/** 予約した人が、延期の候補から1つ選ぶ */
+export async function acceptReschedule(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const id = String(formData.get("booking_id") ?? "");
+  const proposalId = String(formData.get("proposal_id") ?? "");
+  const optionId = String(formData.get("option_id") ?? "");
+  if (!optionId) return { error: "日時を選んでください" };
+
+  const { supabase, profile, booking } = await loadBooking(id);
+  if (!booking) return { error: "予約が見つかりません" };
+  const { error } = await supabase.rpc("accept_reschedule", { p_proposal_id: proposalId, p_option_id: optionId });
+  if (error) return { error: friendlyDbError(error, "日時を変更できませんでした") };
+
+  const { data: opt } = await supabase.from("reschedule_options").select("start_at, end_at").eq("id", optionId).single();
+  after(() =>
+    notify({
+      userId: booking.teacher_id,
+      subject: "延期の日時が決まりました",
+      body: `${profile.display_name}さんが「${offerTitle(booking)}」の新しい日時を選びました。${opt ? `\n新しい日時: ${formatSlot(opt.start_at, opt.end_at)}` : ""}`,
+      path: `/bookings/${id}`,
+    }),
+  );
+  revalidatePath("/", "layout");
+  redirect(`/bookings/${id}?rescheduled=1`);
+}
+
+/** 予約した人が、どの候補も合わないと返事する（予約は取り消し、チケットは戻る） */
+export async function declineReschedule(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const id = String(formData.get("booking_id") ?? "");
+  const proposalId = String(formData.get("proposal_id") ?? "");
+  const { supabase, profile, booking } = await loadBooking(id);
+  if (!booking) return { error: "予約が見つかりません" };
+  const { error } = await supabase.rpc("decline_reschedule", { p_proposal_id: proposalId });
+  if (error) return { error: friendlyDbError(error, "返事を送れませんでした") };
+
+  after(() =>
+    notify({
+      userId: booking.teacher_id,
+      subject: "延期の候補が合わず、予約が取り消されました",
+      body: `${profile.display_name}さんから、「${offerTitle(booking)}」の延期の候補はどれも都合が合わないと返事がありました。予約は取り消され、チケットは相手に戻りました。`,
+      path: `/bookings/${id}`,
+    }),
+  );
+  revalidatePath("/", "layout");
+  redirect(`/bookings/${id}`);
 }
