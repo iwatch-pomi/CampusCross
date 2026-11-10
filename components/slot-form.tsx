@@ -10,10 +10,22 @@ import type { MeetingPlace } from "@/lib/types";
 
 export function SlotForm({ today }: { today: string }) {
   const [state, action] = useActionState(createSlot, undefined);
-  const [place, setPlace] = useState<MeetingPlace>("library");
+  const [places, setPlaces] = useState<MeetingPlace[]>(["library"]);
+  // 登録できたら form を作り直す（送信後に React が form を初期化すると、場所のチェックと選択がずれるため）。
+  // 選んだ場所はそのまま残す
+  const [round, setRound] = useState(0);
+  const [lastOk, setLastOk] = useState<typeof state>(undefined);
+  if (state?.ok && state !== lastOk) {
+    setLastOk(state);
+    setRound((r) => r + 1);
+  }
+  const toggle = (p: MeetingPlace) =>
+    setPlaces((cur) => (cur.includes(p) ? cur.filter((x) => x !== p) : PLACE_ORDER.filter((x) => x === p || cur.includes(x))));
+  const hasZoom = places.includes("zoom");
+  const hasInPerson = places.some((p) => p !== "zoom");
 
   return (
-    <form action={action} className="space-y-4">
+    <form key={round} action={action} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <Field label="日付" htmlFor="date" required>
           <input id="date" name="date" type="date" required min={today} defaultValue={today} className={INPUT} />
@@ -37,13 +49,14 @@ export function SlotForm({ today }: { today: string }) {
       </div>
 
       <fieldset>
-        <legend className="mb-2 text-sm font-bold">場所（学内の公共スペースか Zoom から選ぶ）</legend>
+        <legend className="mb-1 text-sm font-bold">場所（学内の公共スペースか Zoom。いくつでも選べます）</legend>
+        <p className="mb-2 text-xs text-text-sub">複数選ぶと、予約する人がその中から選びます。</p>
         <div className="grid grid-cols-2 gap-2">
           {PLACE_ORDER.map((p) => {
             const { label, hint, icon: Icon } = PLACES[p];
             return (
               <label key={p} className={`${CHOICE} gap-1`}>
-                <input type="radio" name="place" value={p} checked={place === p} onChange={() => setPlace(p)} className="sr-only" />
+                <input type="checkbox" name="place" value={p} checked={places.includes(p)} onChange={() => toggle(p)} className="sr-only" />
                 <span className="flex items-center gap-1.5 font-bold">
                   <Icon className="size-4 text-primary" aria-hidden />
                   {label}
@@ -59,11 +72,14 @@ export function SlotForm({ today }: { today: string }) {
         </p>
       </fieldset>
 
-      {place === "zoom" ? (
-        <Field label="ZoomのURL" htmlFor="meeting_url" required hint="予約した人にだけ表示されます。一覧には出ません">
+      {places.length === 0 && <p className="text-sm text-danger">場所を1つ以上選んでください</p>}
+
+      {hasZoom && (
+        <Field label="ZoomのURL" htmlFor="meeting_url" required hint="Zoom を選んで予約した人にだけ表示されます。一覧には出ません">
           <input id="meeting_url" name="meeting_url" type="url" required inputMode="url" placeholder="https://zoom.us/j/..." className={INPUT} />
         </Field>
-      ) : (
+      )}
+      {hasInPerson && (
         <Field label="待ち合わせの目印（任意）" htmlFor="place_note" hint="例：中央図書館1F 入口付近、窓側のテーブル（40文字まで）">
           <input id="place_note" name="place_note" maxLength={40} placeholder="入口すぐのテーブル" className={INPUT} />
         </Field>

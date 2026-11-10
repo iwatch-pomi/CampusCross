@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isCrossField } from "./auth";
 import { GRADE_LABEL } from "./constants";
 import { shortFieldLabel } from "./categories";
+import { slotModes } from "./safety";
 import { formatSlot, minutesBetween } from "./format";
 import type { Offer, OfferKind, Profile, PublicProfile, Slot } from "./types";
 import type { SkillCardData } from "@/components/skill/skill-card";
@@ -103,7 +104,9 @@ export async function searchOffers(
     return { offer: o, cross, open, mine, card: { ...toCard(o, cross, open, fieldLabel), mine } };
   });
 
-  if (params.mode) rows = rows.filter((r) => r.open.some((s) => s.mode === params.mode));
+  if (params.mode) {
+    rows = rows.filter((r) => r.open.some((s) => (params.mode === "online" ? slotModes(s.places).online : slotModes(s.places).inPerson)));
+  }
   if (params.open) rows = rows.filter((r) => r.open.length > 0);
 
   const nextAt = (r: OfferRow) => (r.open[0] ? new Date(r.open[0].start_at).getTime() : Infinity);

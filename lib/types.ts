@@ -55,9 +55,9 @@ export type Slot = {
   teacher_id: string;
   start_at: string;
   end_at: string;
-  place: MeetingPlace;
+  /** 話せる場所の候補（1〜4つ）。予約する人がこの中から1つ選ぶ */
+  places: MeetingPlace[];
   place_note: string | null;
-  mode: MeetingMode;
   status: SlotStatus;
 };
 
@@ -69,6 +69,8 @@ export type Booking = {
   teacher_id: string;
   status: BookingStatus;
   message: string | null;
+  /** 予約した人が選んだ場所 */
+  place: MeetingPlace;
   is_cross_field: boolean;
   thanks_message: string | null;
   cancelled_by: string | null;

@@ -6,8 +6,8 @@ import { after } from "next/server";
 import { friendlyDbError, requireOnboarded } from "@/lib/auth";
 import { notify } from "@/lib/notify";
 import { formatSlot } from "@/lib/format";
-import { CONTACT_INFO_ERROR, hasContactInfo, placeLabel } from "@/lib/safety";
-import type { ActionState } from "@/lib/types";
+import { CONTACT_INFO_ERROR, hasContactInfo, PLACE_ORDER, placeLabel } from "@/lib/safety";
+import type { ActionState, MeetingPlace } from "@/lib/types";
 
 const text = (fd: FormData, key: string) => {
   const v = String(fd.get(key) ?? "").trim();
@@ -81,8 +81,10 @@ export async function bookSlot(_prev: ActionState, formData: FormData): Promise<
   const { supabase, profile } = await requireOnboarded();
   const offerId = String(formData.get("offer_id") ?? "");
   const slotId = String(formData.get("slot_id") ?? "");
+  const place = String(formData.get("place") ?? "") || null;
   const message = text(formData, "message");
   if (!slotId) return { error: "日時を選んでください" };
+  if (place && !PLACE_ORDER.includes(place as MeetingPlace)) return { error: "場所を選んでください" };
   if ((message?.length ?? 0) > 300) return { error: "ひとことは300文字以内にしてください" };
   if (hasContactInfo(message)) return { error: CONTACT_INFO_ERROR };
 
@@ -90,19 +92,21 @@ export async function bookSlot(_prev: ActionState, formData: FormData): Promise<
     p_slot_id: slotId,
     p_offer_id: offerId,
     p_message: message,
+    p_place: place,
   });
   if (error || !bookingId) return { error: error?.message ?? "予約できませんでした" };
 
-  const [{ data: offer }, { data: slot }] = await Promise.all([
+  const [{ data: offer }, { data: slot }, { data: booked }] = await Promise.all([
     supabase.from("offers").select("title, teacher_id").eq("id", offerId).single(),
-    supabase.from("slots").select("start_at, end_at, place, place_note").eq("id", slotId).single(),
+    supabase.from("slots").select("start_at, end_at, place_note").eq("id", slotId).single(),
+    supabase.from("bookings").select("place").eq("id", bookingId).single(),
   ]);
-  if (offer && slot) {
+  if (offer && slot && booked) {
     after(() =>
       notify({
         userId: offer.teacher_id,
         subject: "予約が入りました",
-        body: `${profile.display_name}さんが「${offer.title}」を予約しました。\n日時: ${formatSlot(slot.start_at, slot.end_at)}\n場所: ${placeLabel(slot)}${message ? `\n\nひとこと: ${message}` : ""}`,
+        body: `${profile.display_name}さんが「${offer.title}」を予約しました。\n日時: ${formatSlot(slot.start_at, slot.end_at)}\n場所: ${placeLabel(booked.place, slot.place_note)}${message ? `\n\nひとこと: ${message}` : ""}`,
         path: `/bookings/${bookingId}`,
       }),
     );

@@ -33,3 +33,6 @@ export function Field({
 /** 選択肢をカード状のボタンで見せるラジオ（種類・形式などの切り替え） */
 export const CHOICE =
   "flex min-h-11 cursor-pointer flex-col justify-center rounded-md border border-border-strong bg-surface p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:checked]:ring-2 has-[:checked]:ring-primary/25 has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-focus";
+
+/** 横並び（左寄せ）の選択肢。中身の長さが違っても左端がそろう */
+export const CHOICE_ROW = CHOICE.replace("flex-col justify-center", "flex-row justify-start");

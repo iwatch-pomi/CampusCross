@@ -21,7 +21,7 @@ export default async function HomePage() {
     searchOffers(supabase, profile, fieldLabel),
     supabase
       .from("bookings")
-      .select("id, learner_id, offer:offers(title), slot:slots(start_at, end_at, place, place_note)")
+      .select("id, learner_id, place, offer:offers(title), slot:slots(start_at, end_at, place_note)")
       .eq("status", "booked")
       .order("created_at", { ascending: false })
       .limit(20),
@@ -53,7 +53,7 @@ export default async function HomePage() {
     { key: "new", title: "新着", sub: "最近出されたカード", href: "/search?sort=new", rows: [...rows].sort((a, b) => b.offer.created_at.localeCompare(a.offer.created_at)) },
   ];
 
-  type Upcoming = { id: string; learner_id: string; offer: { title: string } | null; slot: { start_at: string; end_at: string; place: MeetingPlace; place_note: string | null } | null };
+  type Upcoming = { id: string; learner_id: string; place: MeetingPlace; offer: { title: string } | null; slot: { start_at: string; end_at: string; place_note: string | null } | null };
   const next = ((upcoming ?? []) as unknown as Upcoming[])
     .filter((b) => b.slot)
     .sort((a, b) => a.slot!.start_at.localeCompare(b.slot!.start_at))[0];
@@ -91,7 +91,7 @@ export default async function HomePage() {
             <span className="min-w-0 flex-1">
               <span className="block text-xs font-bold text-primary">{next.learner_id === profile.id ? "次に学ぶ予定" : "次に教える予定"}</span>
               <span className="block truncate font-bold">{next.offer?.title}</span>
-              <span className="block truncate text-xs text-text-sub">{formatSlot(next.slot.start_at, next.slot.end_at)} ・ {placeLabel(next.slot)}</span>
+              <span className="block truncate text-xs text-text-sub">{formatSlot(next.slot.start_at, next.slot.end_at)} ・ {placeLabel(next.place, next.slot.place_note)}</span>
             </span>
             <ArrowRight className="size-4 shrink-0 text-text-sub" aria-hidden />
           </Link>

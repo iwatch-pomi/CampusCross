@@ -14,10 +14,21 @@ export const PLACES: Record<MeetingPlace, { label: string; hint: string; icon: L
 
 export const PLACE_ORDER: MeetingPlace[] = ["cafeteria", "library", "campus_cafe", "zoom"];
 
-/** 例: 「学食・入口すぐのテーブル」 */
-export function placeLabel(slot: { place: MeetingPlace; place_note: string | null }): string {
-  const base = PLACES[slot.place]?.label ?? "学内";
-  return slot.place_note ? `${base}・${slot.place_note}` : base;
+/** 予約で決まった場所。例: 「学食・入口すぐのテーブル」（Zoom のときは目印を付けない） */
+export function placeLabel(place: MeetingPlace, note?: string | null): string {
+  const base = PLACES[place]?.label ?? "学内";
+  return note && place !== "zoom" ? `${base}・${note}` : base;
+}
+
+/** 枠の場所の候補。例: 「学食／Zoom（目印：入口すぐのテーブル）」 */
+export function placesLabel(slot: { places: MeetingPlace[]; place_note: string | null }): string {
+  const base = slot.places.map((p) => PLACES[p]?.label ?? p).join("／");
+  return slot.place_note && slot.places.some((p) => p !== "zoom") ? `${base}（目印：${slot.place_note}）` : base;
+}
+
+/** 枠で対面・オンラインのどちらができるか */
+export function slotModes(places: MeetingPlace[]): { inPerson: boolean; online: boolean } {
+  return { inPerson: places.some((p) => p !== "zoom"), online: places.includes("zoom") };
 }
 
 /** 安全レビューで選べる「気になったこと」（DB の safety_reviews.flags と同じ） */

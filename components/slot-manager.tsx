@@ -6,7 +6,7 @@ import { SlotForm } from "./slot-form";
 import { SubmitButton } from "./form-bits";
 import { Badge, Card, EmptyState } from "./ui";
 import { daysAgoIso, formatSlot, todayJst } from "@/lib/format";
-import { placeLabel } from "@/lib/safety";
+import { placesLabel, slotModes } from "@/lib/safety";
 import type { Slot } from "@/lib/types";
 
 /**
@@ -57,8 +57,8 @@ export async function SlotManager({ supabase, teacherId, stacked = false }: { su
                     <div className="min-w-0 text-sm">
                       <p className="font-bold">{formatSlot(s.start_at, s.end_at)}</p>
                       <p className="flex items-center gap-1 truncate text-text-sub">
-                        {s.mode === "online" ? <Video className="size-3.5 shrink-0" aria-hidden /> : <MapPin className="size-3.5 shrink-0" aria-hidden />}
-                        {placeLabel(s)}
+                        {slotModes(s.places).inPerson ? <MapPin className="size-3.5 shrink-0" aria-hidden /> : <Video className="size-3.5 shrink-0" aria-hidden />}
+                        {placesLabel(s)}
                       </p>
                     </div>
                     {s.status === "booked" ? (

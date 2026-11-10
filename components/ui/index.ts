@@ -5,5 +5,5 @@ export { OfficialBadge } from "./official-badge";
 export { Card } from "./card";
 export { EmptyState } from "./empty-state";
 export { Skeleton, SkillCardSkeleton } from "./skeleton";
-export { Field, INPUT, CHOICE } from "./form";
+export { Field, INPUT, CHOICE, CHOICE_ROW } from "./form";
 export { SectionHeading, PageTitle } from "./section";

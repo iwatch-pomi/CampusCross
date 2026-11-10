@@ -15,7 +15,9 @@ export async function createSlot(_prev: ActionState, formData: FormData): Promis
   const date = String(formData.get("date") ?? "");
   const time = String(formData.get("time") ?? "");
   const minutes = formData.get("minutes") === "30" ? 30 : 15;
-  const place = String(formData.get("place") ?? "") as MeetingPlace;
+  const places = PLACE_ORDER.filter((p) => formData.getAll("place").includes(p)) as MeetingPlace[];
+  const hasZoom = places.includes("zoom");
+  const hasInPerson = places.some((p) => p !== "zoom");
   const placeNote = String(formData.get("place_note") ?? "").trim() || null;
   const meetingUrl = String(formData.get("meeting_url") ?? "").trim();
   const repeat = Math.min(Math.max(Number(formData.get("repeat") ?? 1) || 1, 1), 8);
@@ -23,14 +25,14 @@ export async function createSlot(_prev: ActionState, formData: FormData): Promis
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
     return { error: "日付と開始時刻を入力してください" };
   }
-  if (!PLACE_ORDER.includes(place)) return { error: "場所を選んでください" };
-  if (place !== "zoom" && placeNote) {
+  if (places.length === 0) return { error: "場所を1つ以上選んでください" };
+  if (hasInPerson && placeNote) {
     if (placeNote.length > 40) return { error: "目印は40文字以内にしてください" };
     if (CLOSED_ROOM.test(placeNote)) return { error: "目印に個室・研究室・自宅などは書けません（公共スペース内の目印だけにしてください）" };
     if (hasContactInfo(placeNote)) return { error: CONTACT_INFO_ERROR };
   }
-  if (place === "zoom" && !ZOOM_URL.test(meetingUrl)) {
-    return { error: "ZoomのURL（https://〜zoom.us/〜）を入力してください。予約した人にだけ表示されます" };
+  if (hasZoom && !ZOOM_URL.test(meetingUrl)) {
+    return { error: "ZoomのURL（https://〜zoom.us/〜）を入力してください。Zoom を選んで予約した人にだけ表示されます" };
   }
 
   const start = new Date(jstToIso(date, time));
@@ -43,8 +45,8 @@ export async function createSlot(_prev: ActionState, formData: FormData): Promis
       teacher_id: profile.id,
       start_at: s.toISOString(),
       end_at: new Date(s.getTime() + minutes * 60000).toISOString(),
-      place,
-      place_note: place === "zoom" ? null : placeNote,
+      places,
+      place_note: hasInPerson ? placeNote : null,
     };
   });
 
@@ -56,7 +58,7 @@ export async function createSlot(_prev: ActionState, formData: FormData): Promis
     return { error: friendlyDbError(error, "枠を登録できませんでした") };
   }
 
-  if (place === "zoom") {
+  if (hasZoom) {
     const { error: secretError } = await supabase
       .from("slot_secrets")
       .insert(created.map((s) => ({ slot_id: s.id, meeting_url: meetingUrl })));

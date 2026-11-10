@@ -27,7 +27,8 @@
 | `profile_private.gender` | 性別（本人と運営のみ）。同性限定の判定だけに使う |
 | `profiles.moderation_status` | `active` / `on_hold`（一時停止）/ `banned`（永久凍結）。`is_suspended` に自動で反映 |
 | `profiles.terms_version` / `terms_agreed_at` | 利用規約への同意。未同意だとオンボーディング未完了扱い |
-| `slots.place` / `place_note` | 場所は `cafeteria`・`library`・`campus_cafe`・`zoom` のみ。目印に個室・研究室などは書けない。最長30分 |
+| `slots.places` / `place_note` | 場所の候補（1〜4つ）。`cafeteria`・`library`・`campus_cafe`・`zoom` のみ。目印に個室・研究室などは書けない。最長30分（`migrations/20261112000000_slot_places.sql` で1つ → 複数に変更） |
+| `bookings.place` | 予約した人が候補の中から選んだ場所。Zoom の URL は、Zoom を選んだ人にだけ見える |
 | `slot_secrets` | Zoom の URL（話す人と予約した人だけが読める） |
 | `safety_reviews` | 相互の安全レビュー（回答者と運営だけが読める） |
 | `reports`（拡張） | 理由に出会い目的・連絡先の要求・場所の誘導を追加。安全レビューからの自動登録（`source = 'review'`） |
@@ -66,13 +67,13 @@
 
 | 関数 | 誰が | 内容 |
 |---|---|---|
-| `book_slot(p_slot_id, p_offer_id, p_message)` | 学ぶ側 | 枠を予約し、チケットを1枚仮押さえする。予約IDを返す |
+| `book_slot(p_slot_id, p_offer_id, p_message, p_place)` | 学ぶ側 | 枠を予約し、チケットを1枚仮押さえする。`p_place` は枠の候補から選んだ場所（候補が1つなら省略可）。予約IDを返す |
 | `cancel_booking(p_booking_id, p_reason)` | 当事者 | キャンセルして学ぶ側に返却する。学ぶ側からなら枠を戻し、教える側からなら枠も取り消す |
 | `complete_booking(p_booking_id, p_thanks)` | 学ぶ側 | 開始後に完了にする。教える側に+1 |
 | `send_thanks(p_booking_id, p_thanks)` | 学ぶ側 | 完了した予約に、後からお礼コメントを送る |
 | `claim_monthly_grant()` | 全員 | 毎月の配布を受け取る。**ログインのたびに呼んでよい**（月1回だけ有効で、受け取った枚数を返す） |
 
-`book_slot` がチェックしていること：ログイン済み・停止中でない・プロフィール登録済み・枠が空いている・自分の枠ではない・締め切り（開始1時間前）より前・カードと枠が同じ教える人のもの・枠の長さが足りる・ブロック関係にない・同じ時間帯に別の予約がない・残高が1枚以上。
+`book_slot` がチェックしていること：ログイン済み・停止中でない・プロフィール登録済み・枠が空いている・自分の枠ではない・締め切り（開始1時間前）より前・カードと枠が同じ教える人のもの・枠の長さが足りる・ブロック関係にない・同じ時間帯に別の予約がない・残高が1枚以上・場所が枠の候補に含まれている。
 
 **異分野の判定**：予約した時点で、学ぶ側と教える側のプロフィールの**学部（`faculty_id`）または分野（`field_code`）**が違えば `is_cross_field = true` になります。
 

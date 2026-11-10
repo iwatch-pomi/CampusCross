@@ -7,7 +7,6 @@ import { bookableTeacherIds, loadOpenSlots, TEACHER_SELECT, toCard, type OfferWi
 import { categoryMeta } from "@/lib/categories";
 import { GRADE_LABEL } from "@/lib/constants";
 import { formatSlot, minutesBetween } from "@/lib/format";
-import { placeLabel } from "@/lib/safety";
 import { BookingForm } from "@/components/booking-form";
 import { Avatar, Badge, ButtonLink, Card, EmptyState, OfficialBadge, buttonClass } from "@/components/ui";
 import { SkillThumbnail } from "@/components/skill/skill-thumbnail";
@@ -168,7 +167,7 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/of
               <BookingForm
                 offerId={offer.id}
                 balance={balance}
-                slots={slots.map((s) => ({ id: s.id, label: formatSlot(s.start_at, s.end_at), place: placeLabel(s), online: s.mode === "online" }))}
+                slots={slots.map((s) => ({ id: s.id, label: formatSlot(s.start_at, s.end_at), places: s.places, note: s.place_note }))}
               />
             )}
           </Card>

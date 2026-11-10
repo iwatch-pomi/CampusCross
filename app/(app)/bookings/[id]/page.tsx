@@ -38,7 +38,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
   const b = data as Row;
 
   const [{ data: secret }, { data: myReview }] = await Promise.all([
-    b.slot.place === "zoom" && b.status !== "cancelled"
+    b.place === "zoom" && b.status !== "cancelled"
       ? supabase.from("slot_secrets").select("meeting_url").eq("slot_id", b.slot_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from("safety_reviews").select("id").eq("booking_id", b.id).eq("reviewer_id", profile.id).maybeSingle(),
@@ -47,7 +47,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
   const iAmLearner = b.learner_id === profile.id;
   const other = iAmLearner ? b.teacher : b.learner;
   const started = hasStarted(b.slot.start_at);
-  const online = b.slot.mode === "online";
+  const online = b.place === "zoom";
   // 安全レビュー: 開始時刻を過ぎていて、開始前のキャンセルでなく、まだ回答していないとき
   const cancelledBeforeStart = b.status === "cancelled" && !!b.cancelled_at && b.cancelled_at < b.slot.start_at;
   const canReview = started && !cancelledBeforeStart && !myReview;
@@ -75,7 +75,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
             <div className="grid gap-3 sm:grid-cols-2">
               <Info icon={<CalendarClock className="size-5" />} label="日時">{formatSlot(b.slot.start_at, b.slot.end_at)}</Info>
               <Info icon={online ? <Video className="size-5" /> : <MapPin className="size-5" />} label={online ? "オンライン" : "場所（学内の公共スペース）"}>
-                {placeLabel(b.slot)}
+                {placeLabel(b.place, b.slot.place_note)}
                 {secret?.meeting_url && (
                   <a href={secret.meeting_url} target="_blank" rel="noopener noreferrer" className="mt-1 block break-all text-primary underline">
                     {secret.meeting_url}
@@ -109,7 +109,7 @@ export default async function BookingPage({ params, searchParams }: PageProps<"/
             <ShieldCheck className="size-4" aria-hidden />
             当日の約束
           </p>
-          <p>・場所は「{PLACES[b.slot.place].label}」から移動しない（個室・研究室・自宅などへ誘われたら断って通報）</p>
+          <p>・場所は「{PLACES[b.place].label}」から移動しない（個室・研究室・自宅などへ誘われたら断って通報）</p>
           <p>・時間は{b.offer.duration_min}分まで。連絡先やSNSの交換は求めない・断ってよい</p>
           <p>・当日は表示名（ニックネーム）で声をかける</p>
         </div>

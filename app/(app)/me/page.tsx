@@ -15,7 +15,7 @@ import type { Booking, LedgerEntry, Offer, Slot } from "@/lib/types";
 export const metadata: Metadata = { title: "マイページ" };
 
 type BookingRow = Booking & {
-  slot: Pick<Slot, "start_at" | "end_at" | "place" | "place_note">;
+  slot: Pick<Slot, "start_at" | "end_at" | "place_note">;
   offer: Pick<Offer, "id" | "title" | "kind">;
   learner: { id: string; display_name: string; grade: string | null; faculty: { name: string } | null };
   teacher: { display_name: string };
@@ -32,7 +32,7 @@ export default async function MePage() {
       supabase
         .from("bookings")
         .select(
-          "*, slot:slots(start_at, end_at, place, place_note), offer:offers(id, title, kind), learner:profiles!bookings_learner_id_fkey(id, display_name, grade, faculty:faculties(name)), teacher:profiles!bookings_teacher_id_fkey(display_name)",
+          "*, slot:slots(start_at, end_at, place_note), offer:offers(id, title, kind), learner:profiles!bookings_learner_id_fkey(id, display_name, grade, faculty:faculties(name)), teacher:profiles!bookings_teacher_id_fkey(display_name)",
         )
         .order("created_at", { ascending: false })
         .limit(200),
@@ -159,7 +159,7 @@ export default async function MePage() {
                       </div>
                       <p className="truncate font-bold">{b.offer.title}</p>
                       <p className="truncate text-xs text-text-sub">
-                        {formatSlot(b.slot.start_at, b.slot.end_at)} ・ {placeLabel(b.slot)} ・ {iTeach ? b.learner.display_name : b.teacher.display_name}さん
+                        {formatSlot(b.slot.start_at, b.slot.end_at)} ・ {placeLabel(b.place, b.slot.place_note)} ・ {iTeach ? b.learner.display_name : b.teacher.display_name}さん
                       </p>
                     </div>
                     <ArrowRight className="size-5 shrink-0 text-text-sub" aria-hidden />
