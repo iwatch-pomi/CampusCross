@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Ban, Clock } from "lucide-react";
 import { getCurrentMember } from "@/lib/auth";
@@ -26,6 +27,11 @@ export default async function SuspendedPage() {
             : "あなたに関する通報を運営が確認しています。確認が終わるまで、予約・カードの公開・枠の登録はできません。確認の結果、規約違反が認められた場合は永久に利用停止となります。"}
         </p>
       </div>
+      <p className="text-center text-sm text-text-sub">
+        この対応について確認したいことがあれば、
+        <Link href="/contact?category=account" className="font-bold text-primary underline">お問い合わせ</Link>
+        から運営に連絡できます。
+      </p>
       <form action="/auth/signout" method="post">
         <button type="submit" className={buttonClass("outline", "md", "w-full")}>ログアウト</button>
       </form>

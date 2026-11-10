@@ -39,3 +39,8 @@ export function todayJst(): string {
 export function hasStarted(startAt: string): boolean {
   return new Date(startAt).getTime() <= Date.now();
 }
+
+/** いまから days 日前の時刻（ISO 文字列）。一覧の絞り込みに使う */
+export function daysAgoIso(days: number): string {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+}

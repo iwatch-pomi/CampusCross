@@ -50,6 +50,16 @@
 | `profiles.is_official` | 公式運営バッジ。本人は変えられず、運営が `admin_set_official(p_user, p_on)` で付け外しする。運営の権限（`is_admin`）がある人にだけ付けられ、権限を外すとバッジも自動で外れる |
 | 表示名のチェック | バッジのない人は、「運営」「公式」「事務局」「管理者」「Campus-Cross」「キャンパス・クロス」を含む表示名を使えない（なりすまし防止） |
 
+## 問い合わせ（`migrations/20261111000000_inquiries.sql`）
+
+| 追加したもの | 内容 |
+|---|---|
+| `inquiries` | 種類（使い方・ログインできない・不具合・安全・アカウント・要望・その他）、内容、返信、状態（`open` / `answered` / `closed`）。読めるのは本人と運営だけ |
+| `submit_inquiry(p_category, p_body)` | ログインしている人が送る（1日5件まで。停止中の人も送れる） |
+| `admin_reply_inquiry(p_id, p_reply)` | 運営が返信する。`p_reply` が null なら、返信せずに閉じる |
+
+ログインしていない人の問い合わせは、Next.js のサーバー側から service role で入れます（返信先のメールアドレスが必須。同じアドレスから1時間に3件、全体で1時間に30件まで）。新しい問い合わせは運営の全員にメールで知らせ、返信は Resend でメールでも届けます。
+
 自動一時停止のしきい値は `private.app_config.hold_threshold`（初期値2人）、利用規約の版は `terms_version` で変えられます（画面側の `lib/content.ts` の `TERMS_VERSION` も合わせて変える）。
 
 ## RPC（クライアントから `supabase.rpc()` で呼ぶ）

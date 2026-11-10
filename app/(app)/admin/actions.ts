@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { friendlyDbError, requireAdmin } from "@/lib/auth";
+import { appLink, sendMail } from "@/lib/notify";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { ActionState } from "@/lib/types";
 
 const text = (fd: FormData, key: string) => {
@@ -88,4 +90,52 @@ export async function setOfficialBadge(_prev: ActionState, formData: FormData): 
 
   revalidatePath("/", "layout");
   return { ok: true, message: on ? "公式運営バッジを付けました" : "公式運営バッジを外しました" };
+}
+
+export async function replyInquiry(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const { supabase } = await requireAdmin();
+  const id = String(formData.get("inquiry_id") ?? "");
+  const close = formData.get("intent") === "close";
+  const reply = close ? null : text(formData, "reply");
+  if (!close && !reply) return { error: "返信の内容を書いてください" };
+
+  const { data: inquiry } = await supabase.from("inquiries").select("id, user_id, reply_email, body").eq("id", id).maybeSingle();
+  if (!inquiry) return { error: "問い合わせが見つかりません" };
+
+  const { error } = await supabase.rpc("admin_reply_inquiry", { p_id: id, p_reply: reply });
+  if (error) return { error: friendlyDbError(error, "記録できませんでした") };
+
+  let mailed = false;
+  if (reply) mailed = await mailInquiryReply(inquiry, reply);
+
+  revalidatePath("/admin");
+  revalidatePath("/contact");
+  if (close) return { ok: true, message: "返信せずに対応済みにしました" };
+  return {
+    ok: true,
+    message: mailed ? "返信を送りました" : "返信を記録しました（メールは送れませんでした。ログインしている人はお問い合わせページで読めます）",
+  };
+}
+
+/** 返信をメールで送る。宛先は、ログインしている人なら通知先メール（なければ大学メール）、そうでなければ入力された返信先 */
+async function mailInquiryReply(
+  inquiry: { user_id: string | null; reply_email: string | null; body: string },
+  reply: string,
+): Promise<boolean> {
+  let to = inquiry.reply_email;
+  if (inquiry.user_id) {
+    const admin = createAdminClient();
+    if (!admin) return false;
+    const { data } = await admin.from("profile_private").select("university_email, contact_email").eq("user_id", inquiry.user_id).single();
+    to = data?.contact_email || data?.university_email || null;
+  }
+  if (!to) return false;
+  const quoted = inquiry.body.split("\n").map((l) => `> ${l}`).join("\n");
+  return sendMail({
+    to,
+    subject: "お問い合わせへの返信",
+    text: `お問い合わせありがとうございます。Campus-Cross 運営です。\n\n${reply}\n\n---\nいただいたお問い合わせ:\n${quoted}${
+      inquiry.user_id ? appLink("/contact") : ""
+    }\n\n---\nCampus-Cross 運営\nこのメールは送信専用です。続けてのご質問は、サイトのお問い合わせページからお送りください。`,
+  });
 }

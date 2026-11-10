@@ -24,19 +24,40 @@ export async function notify({ userId, subject, body, path }: Mail): Promise<voi
       .single();
     if (!target || !target.notify_by_email) return;
 
-    const link = path ? `\n\n${(process.env.APP_URL ?? "").replace(/\/$/, "")}${path}` : "";
+    await sendMail({
+      to: target.contact_email || target.university_email,
+      subject,
+      text: `${body}${appLink(path)}\n\n---\nCampus-Cross（通知はマイページから止められます）`,
+    });
+  } catch (e) {
+    console.error("[notify:error]", e);
+  }
+}
+
+export function appLink(path?: string): string {
+  return path ? `\n\n${(process.env.APP_URL ?? "").replace(/\/$/, "")}${path}` : "";
+}
+
+/**
+ * メールを1通送る（Resend）。件名には [Campus-Cross] を付ける。
+ * 送れたら true。RESEND_API_KEY が未設定なら送らずにログだけ出して false。例外は投げない。
+ */
+export async function sendMail({ to, subject, text }: { to: string; subject: string; text: string }): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.info(`[mail:skip] subject=${subject}`);
+    return false;
+  }
+  try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: process.env.NOTIFY_FROM,
-        to: target.contact_email || target.university_email,
-        subject: `[Campus-Cross] ${subject}`,
-        text: `${body}${link}\n\n---\nCampus-Cross（通知はマイページから止められます）`,
-      }),
+      body: JSON.stringify({ from: process.env.NOTIFY_FROM, to, subject: `[Campus-Cross] ${subject}`, text }),
     });
-    if (!res.ok) console.error(`[notify:error] ${res.status} ${await res.text()}`);
+    if (!res.ok) console.error(`[mail:error] ${res.status} ${await res.text()}`);
+    return res.ok;
   } catch (e) {
-    console.error("[notify:error]", e);
+    console.error("[mail:error]", e);
+    return false;
   }
 }

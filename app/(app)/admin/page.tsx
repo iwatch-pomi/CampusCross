@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Flag, ShieldAlert } from "lucide-react";
+import { ArrowRight, BadgeCheck, Flag, MessageCircleQuestion, ShieldAlert } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { ACTION_LABEL, REPORT_SELECT, STATUS_LABEL, STATUS_TONE, type ReportRow } from "@/lib/admin";
 import { REPORT_REASON_LABEL } from "@/lib/safety";
-import { formatDateTime } from "@/lib/format";
+import { daysAgoIso, formatDateTime } from "@/lib/format";
+import { INQUIRY_CATEGORY_LABEL, type Inquiry } from "@/lib/inquiry";
+import { InquiryReplyForm } from "@/components/admin-forms";
 import { Badge, Card, EmptyState, OfficialBadge, PageTitle } from "@/components/ui";
 import type { ModerationStatus } from "@/lib/types";
 
@@ -13,7 +15,7 @@ export const metadata: Metadata = { title: "運営" };
 export default async function AdminPage() {
   const { supabase } = await requireAdmin();
 
-  const [{ data: reportRows }, { data: held }, { data: actions }, { data: admins }] = await Promise.all([
+  const [{ data: reportRows }, { data: held }, { data: actions }, { data: admins }, { data: inquiryRows }] = await Promise.all([
     supabase.from("reports").select(REPORT_SELECT).in("status", ["open", "reviewing"]).order("created_at", { ascending: false }).limit(100),
     supabase.from("profiles").select("id, display_name, moderation_status, moderated_at").neq("moderation_status", "active").order("moderated_at", { ascending: false }).limit(50),
     supabase
@@ -22,7 +24,16 @@ export default async function AdminPage() {
       .order("created_at", { ascending: false })
       .limit(20),
     supabase.from("profiles").select("id, display_name, is_official").eq("is_admin", true).order("created_at"),
+    supabase
+      .from("inquiries")
+      .select("id, user_id, category, body, reply_email, status, reply, replied_at, created_at, sender:profiles!inquiries_user_id_fkey(id, display_name)")
+      // 返信待ちと、この3日に対応したもの（対応した直後も結果が見えるように）
+      .or(`status.eq.open,replied_at.gte.${daysAgoIso(3)}`)
+      .order("created_at", { ascending: true })
+      .limit(100),
   ]);
+  const inquiries = (inquiryRows ?? []) as unknown as (Inquiry & { sender: { id: string; display_name: string } | null })[];
+  const openInquiries = inquiries.filter((q) => q.status === "open").length;
   const reports = (reportRows ?? []) as unknown as ReportRow[];
 
   return (
@@ -60,6 +71,40 @@ export default async function AdminPage() {
                       <ArrowRight className="size-4" aria-hidden />
                     </Link>
                   )}
+                </Card>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section id="inquiries" aria-labelledby="inquiries-heading" className="scroll-mt-24">
+        <h2 id="inquiries-heading" className="mb-3 flex items-center gap-2 text-lg">
+          <MessageCircleQuestion className="size-5 text-primary" aria-hidden />
+          問い合わせ（返信待ち {openInquiries}件）
+        </h2>
+        {inquiries.length === 0 ? (
+          <EmptyState title="問い合わせはありません" />
+        ) : (
+          <ul className="space-y-3">
+            {inquiries.map((q) => (
+              <li key={q.id}>
+                <Card className="space-y-3 p-4">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge tone={q.category === "safety" ? "danger" : "primary"}>{INQUIRY_CATEGORY_LABEL[q.category] ?? q.category}</Badge>
+                    {q.status !== "open" && <Badge tone="muted">{q.status === "answered" ? "返信済み" : "対応済み"}</Badge>}
+                    <span className="text-xs text-text-sub">{formatDateTime(q.created_at)}</span>
+                  </div>
+                  <p className="text-sm">
+                    <span className="text-text-sub">送った人：</span>
+                    {q.sender ? (
+                      <Link href={`/admin/users/${q.sender.id}`} className="font-bold text-primary underline">{q.sender.display_name || "（プロフィール未登録）"}</Link>
+                    ) : (
+                      <span className="font-bold">ログインなし（返信先 {q.reply_email}）</span>
+                    )}
+                  </p>
+                  <p className="whitespace-pre-wrap rounded-md bg-bg-section p-3 text-sm">{q.body}</p>
+                  <InquiryReplyForm inquiryId={q.id} status={q.status} reply={q.reply} />
                 </Card>
               </li>
             ))}

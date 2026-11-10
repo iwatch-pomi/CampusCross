@@ -17,6 +17,7 @@ export function SiteFooter({ loggedIn, stickyBar = false }: { loggedIn: boolean;
         {!loggedIn && (
           <nav aria-label="フッター">
             <Link href="/guidelines" className="flex min-h-11 items-center text-sm text-text-sub hover:text-primary">利用規約・安全ガイドライン</Link>
+            <Link href="/contact" className="flex min-h-11 items-center text-sm text-text-sub hover:text-primary">お問い合わせ</Link>
           </nav>
         )}
         {loggedIn && (
@@ -28,6 +29,7 @@ export function SiteFooter({ loggedIn, stickyBar = false }: { loggedIn: boolean;
                 ["/slots", "空き枠"],
                 ["/me", "マイページ"],
                 ["/guidelines", "利用規約・安全ガイドライン"],
+                ["/contact", "お問い合わせ"],
               ].map(([href, label]) => (
                 <li key={href}>
                   <Link href={href} className="flex min-h-11 items-center text-text-sub hover:text-primary">{label}</Link>

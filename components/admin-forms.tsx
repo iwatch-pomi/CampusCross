@@ -1,10 +1,11 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { recordReferral, resolveReport, setOfficialBadge, setUserStatus } from "@/app/(app)/admin/actions";
+import { recordReferral, replyInquiry, resolveReport, setOfficialBadge, setUserStatus } from "@/app/(app)/admin/actions";
 import { FormMessage, SubmitButton } from "./form-bits";
 import { CHOICE, Field, INPUT } from "./ui";
 import type { ModerationStatus } from "@/lib/types";
+import type { InquiryStatus } from "@/lib/inquiry";
 
 export function StatusForm({
   userId,
@@ -116,6 +117,38 @@ export function OfficialBadgeForm({ userId, current }: { userId: string; current
       <SubmitButton variant={current ? "outline" : "primary"} className="w-full" pendingText="処理中…">
         {current ? "公式運営バッジを外す" : "公式運営バッジを付ける"}
       </SubmitButton>
+    </form>
+  );
+}
+
+/** 問い合わせへの返信（返信はメールで届き、ログインしている人はお問い合わせページでも読める） */
+export function InquiryReplyForm({ inquiryId, status, reply }: { inquiryId: string; status: InquiryStatus; reply: string | null }) {
+  const [state, action] = useActionState(replyInquiry, undefined);
+  if (state?.ok || status !== "open") {
+    return (
+      <div className="space-y-2">
+        {state?.ok && <FormMessage state={state} />}
+        {reply && (
+          <div className="rounded-md bg-primary-soft p-3 text-sm">
+            <p className="text-xs font-bold text-primary">送った返信</p>
+            <p className="mt-1 whitespace-pre-wrap">{reply}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="inquiry_id" value={inquiryId} />
+      <label className="sr-only" htmlFor={`reply-${inquiryId}`}>返信</label>
+      <textarea id={`reply-${inquiryId}`} name="reply" rows={4} maxLength={4000} placeholder="返信の内容（メールで届きます）" className={INPUT} />
+      <FormMessage state={state} />
+      <div className="flex flex-wrap gap-2">
+        <SubmitButton pendingText="送信中…">返信して対応済みにする</SubmitButton>
+        <button type="submit" name="intent" value="close" formNoValidate className="min-h-11 rounded-md px-3 text-sm text-text-sub underline hover:text-primary">
+          返信せずに閉じる
+        </button>
+      </div>
     </form>
   );
 }

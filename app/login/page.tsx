@@ -152,7 +152,10 @@ export default function LoginPage() {
             <div className="rounded-lg border border-border bg-surface p-6 shadow-card-hover">
               <LoginForm domainHint={domain} />
             </div>
-            <p className="mt-4 text-center text-xs text-text-sub">登録とログインは同じ手順です。</p>
+            <p className="mt-4 text-center text-xs text-text-sub">
+              登録とログインは同じ手順です。コードが届かないときは
+              <Link href="/contact?category=login" className="ml-1 font-bold text-primary underline">お問い合わせ</Link>
+            </p>
           </div>
         </section>
       </main>
