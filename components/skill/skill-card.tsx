@@ -21,6 +21,8 @@ export type SkillCardData = {
   sameGenderOnly?: boolean;
   nextSlotLabel?: string | null;
   tags?: string[];
+  /** 自分が出したカード */
+  mine?: boolean;
 };
 
 /**
@@ -41,6 +43,7 @@ export function SkillCard({ data, className = "" }: { data: SkillCardData; class
         <SkillThumbnail field={data.fieldCode} kind={data.kind} durationMin={data.durationMin} />
         <div className="flex flex-1 flex-col gap-2 px-4 pb-3 pt-3">
           <div className="flex flex-wrap gap-1.5">
+            {data.mine && <Badge tone="primary">あなたのカード</Badge>}
             {data.cross && (
               <Badge tone="point" icon={<Shuffle className="size-3" aria-hidden />}>
                 異分野

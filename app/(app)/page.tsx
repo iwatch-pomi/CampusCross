@@ -41,13 +41,13 @@ export default async function HomePage() {
 
   const topics = rows.filter((r) => r.offer.kind === "topic");
   const sections: { key: string; title: string; sub: string; href: string; rows: OfferRow[] }[] = [
-    { key: "cross", title: "あなたにとって異分野のテーマ", sub: "自分と違う学部・分野の人のカード", href: "/search?kind=topic", rows: topics.filter((r) => r.cross) },
+    { key: "cross", title: "あなたにとって異分野のテーマ", sub: "自分と違う学部・分野の人のカード", href: "/search?kind=topic", rows: topics.filter((r) => r.cross && !r.mine) },
     {
       key: "soon",
       title: "もうすぐ話せる",
       sub: "近い日時に空き枠があるカード",
       href: "/search?sort=soon&open=1",
-      rows: rows.filter((r) => r.open.length > 0).sort((a, b) => a.open[0].start_at.localeCompare(b.open[0].start_at)),
+      rows: rows.filter((r) => !r.mine && r.open.length > 0).sort((a, b) => a.open[0].start_at.localeCompare(b.open[0].start_at)),
     },
     { key: "guide", title: "他学部のしくみ", sub: "ゼミ・研究室の決まり方、卒論、学び方", href: "/search?kind=faculty_guide", rows: rows.filter((r) => r.offer.kind === "faculty_guide") },
     { key: "new", title: "新着", sub: "最近出されたカード", href: "/search?sort=new", rows: [...rows].sort((a, b) => b.offer.created_at.localeCompare(a.offer.created_at)) },

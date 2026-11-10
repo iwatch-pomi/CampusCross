@@ -51,6 +51,8 @@ export type OfferRow = {
   offer: OfferWithTeacher;
   cross: boolean;
   open: Slot[];
+  /** 自分が出したカード（予約はできないが、一覧と件数には含める） */
+  mine: boolean;
   card: SkillCardData;
 };
 
@@ -68,7 +70,6 @@ export async function searchOffers(
     .from("offers")
     .select(`*, ${TEACHER_SELECT}`)
     .eq("is_active", true)
-    .neq("teacher_id", me.id)
     .order("created_at", { ascending: false })
     .limit(300);
   if (params.kind) query = query.eq("kind", params.kind);
@@ -79,9 +80,10 @@ export async function searchOffers(
   const needle = params.q?.trim().toLowerCase() ?? "";
   const all = (data ?? []) as OfferWithTeacher[];
   // 同性限定などで申し込めない相手のカードは、一覧に出さない
-  const allowed = await bookableTeacherIds(supabase, [...new Set(all.map((o) => o.teacher_id))]);
+  const others = [...new Set(all.map((o) => o.teacher_id))].filter((id) => id !== me.id);
+  const allowed = await bookableTeacherIds(supabase, others);
   const offers = all.filter((o) => {
-    if (!allowed.has(o.teacher_id)) return false;
+    if (o.teacher_id !== me.id && !allowed.has(o.teacher_id)) return false;
     if (params.faculty && o.teacher.faculty_id !== params.faculty) return false;
     if (needle) {
       const hay = [o.title, o.hook, o.description ?? "", o.want_to_hear ?? "", ...o.tags].join(" ").toLowerCase();
@@ -96,8 +98,9 @@ export async function searchOffers(
 
   let rows = offers.map((o) => {
     const open = (byTeacher.get(o.teacher_id) ?? []).filter((s) => minutesBetween(s.start_at, s.end_at) >= o.duration_min);
-    const cross = isCrossField(me, o.teacher);
-    return { offer: o, cross, open, card: toCard(o, cross, open, fieldLabel) };
+    const mine = o.teacher_id === me.id;
+    const cross = !mine && isCrossField(me, o.teacher);
+    return { offer: o, cross, open, mine, card: { ...toCard(o, cross, open, fieldLabel), mine } };
   });
 
   if (params.mode) rows = rows.filter((r) => r.open.some((s) => s.mode === params.mode));
@@ -106,8 +109,13 @@ export async function searchOffers(
   const nextAt = (r: OfferRow) => (r.open[0] ? new Date(r.open[0].start_at).getTime() : Infinity);
   if (params.sort === "soon") rows.sort((a, b) => nextAt(a) - nextAt(b));
   else if (params.sort !== "new") {
-    // おすすめ: 異分野 → 空き枠あり → 新しい順
-    rows.sort((a, b) => Number(b.cross) - Number(a.cross) || Number(b.open.length > 0) - Number(a.open.length > 0));
+    // おすすめ: 他の人のカード → 異分野 → 空き枠あり → 新しい順
+    rows.sort(
+      (a, b) =>
+        Number(a.mine) - Number(b.mine) ||
+        Number(b.cross) - Number(a.cross) ||
+        Number(b.open.length > 0) - Number(a.open.length > 0),
+    );
   }
   return rows;
 }
